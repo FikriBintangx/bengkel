@@ -142,6 +142,37 @@ J. Pemeriksaan Akhir
 Format Output: HANYA berikan hasil parafrase teks tersebut. Jangan berikan pengantar, penjelasan, atau kesimpulan lainnya.
 """
 
+SYSTEM_INSTRUCTION_PDF_SOLVER = """INSTRUKSI SISTEM ABSOLUT - PROTOKOL "TURNITIN SLAYER"
+
+PERINGATAN KRITIKAL: Anda dilarang keras berhalusinasi. Jika tidak ada teks dengan highlight/sorotan warna di halaman yang diberikan, abaikan halaman tersebut dan JANGAN berikan output apapun.
+
+Anda adalah mesin pemroses bahasa akademis tingkat lanjut. Tugas Anda mengekstrak secara presisi teks yang terindikasi plagiarisme (memiliki highlight warna) dari dokumen PDF dan melakukan rekonstruksi radikal tanpa mengubah substansi ilmiah.
+
+Ikuti 5 Aturan Emas ini TANPA PENGECUALIAN:
+
+1. EKSTRAKSI BEDAH LASER (ANTI-BORONGAN): 
+   HANYA ambil teks yang benar-benar tersorot warna. DILARANG KERAS mengambil kalimat tetangga atau menyalin satu paragraf utuh jika yang berwarna hanya beberapa kata/baris. Panjang teks asli yang diambil harus sama persis dengan panjang sorotan di dokumen asli, tidak dikurangi dan tidak dilebihkan.
+
+2. REKONSTRUKSI RADIKAL (<30% SIMILARITY): 
+   Rombak total struktur sintaksis kalimat. 
+   - Ubah kalimat aktif menjadi pasif, atau sebaliknya.
+   - Lakukan inversi klausa (pindahkan posisi anak kalimat).
+   - Haram menggunakan lebih dari 3 kata berurutan yang sama dengan teks asli.
+
+3. PRESERVASI ENTITAS TEKNIS: 
+   Kosakata harus dinaikkan menjadi bahasa akademis formal. NAMUN, Anda DILARANG mengubah istilah teknis, nama algoritma (seperti Haar Cascade, LBPH, dll), bahasa pemrograman, data metrik, angka, dan format sitasi (Nama, Tahun).
+
+4. FORMAT MARKDOWN MUTLAK: 
+   Wajib menggunakan format keluaran berikut untuk setiap temuan. Jangan tambahkan pembuka, penutup, atau komentar apapun.
+
+### Halaman [Nomor Halaman]
+* **Teks Asli:** "[potongan teks asli ber-highlight]"
+* **Hasil Parafrase:** "**[kalimat baru yang sudah direkonstruksi]**"
+
+5. EKSEKUSI DIAM:
+   Langsung berikan output sesuai format. Jika melanggar, sistem akan menolak respons Anda.
+"""
+
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -455,6 +486,7 @@ HTML_TEMPLATE = """
                 <button class="tab-btn" onclick="switchTab('compress')">PDF Compressor</button>
                 <button class="tab-btn" onclick="switchTab('pdf2word')">PDF to Word</button>
                 <button class="tab-btn" onclick="switchTab('word2pdf')">Word to PDF</button>
+                <button class="tab-btn" onclick="switchTab('pdf_solver')">PDF Solver (AI)</button>
             </div>
 
             {% if success_msg %}
@@ -583,6 +615,31 @@ HTML_TEMPLATE = """
                 </form>
             </div>
 
+            <!-- TAB 6: TURNITIN PDF SOLVER -->
+            <div id="pdf_solver" class="tab-content">
+                <form action="/process_pdf_solver" method="POST" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Gemini API Key</label>
+                        <div class="api-input-container">
+                            <input type="text" id="api_key_input_solver" name="api_key" placeholder="Enter your Gemini API Key here" required value="{{ api_key_val }}">
+                            <button type="button" class="btn-check-api" onclick="checkAPIKeySolver()">Check API</button>
+                        </div>
+                        <div id="api_status_solver" class="api-status-badge"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Turnitin PDF Result with Highlights (.pdf)</label>
+                        <div class="file-upload-wrapper">
+                            <span class="upload-icon">📕</span>
+                            <div class="file-name-label" id="pdf-solver-label">Choose a file or drag it here</div>
+                            <input type="file" name="pdf_file" accept=".pdf" required onchange="updateLabel(this, 'pdf-solver-label')">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit">Analyze & Slay PDF</button>
+                </form>
+            </div>
+
             <footer>Powered by Antigravity AI</footer>
         </div>
     </div>
@@ -629,6 +686,44 @@ HTML_TEMPLATE = """
         function checkAPIKey() {
             const apiKey = document.getElementById('api_key_input').value.trim();
             const statusDiv = document.getElementById('api_status');
+            
+            if (!apiKey) {
+                statusDiv.style.display = 'block';
+                statusDiv.style.color = '#9b1c1c';
+                statusDiv.innerText = '⚠️ Silakan masukkan API Key terlebih dahulu!';
+                return;
+            }
+
+            statusDiv.style.display = 'block';
+            statusDiv.style.color = 'var(--secondary-text)';
+            statusDiv.innerText = '⌛ Memeriksa status API Key...';
+
+            fetch('/check_api', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ api_key: apiKey })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    statusDiv.style.color = '#0f5132';
+                    statusDiv.innerText = '🟢 API Key Aktif & Valid! Siap digunakan.';
+                } else {
+                    statusDiv.style.color = '#9b1c1c';
+                    statusDiv.innerText = '🔴 API Key Tidak Valid / Error: ' + data.message;
+                }
+            })
+            .catch(error => {
+                statusDiv.style.color = '#9b1c1c';
+                statusDiv.innerText = '🔴 Gagal terhubung ke server untuk mengecek API Key.';
+            });
+        }
+
+        function checkAPIKeySolver() {
+            const apiKey = document.getElementById('api_key_input_solver').value.strip ? document.getElementById('api_key_input_solver').value.strip() : document.getElementById('api_key_input_solver').value;
+            const statusDiv = document.getElementById('api_status_solver');
             
             if (!apiKey) {
                 statusDiv.style.display = 'block';
@@ -1057,6 +1152,96 @@ def process_word2pdf():
             return redirect(url_for('index', error_msg=f"Error occurred during conversion: {str(e)}", active_tab="word2pdf"))
             
     return redirect(url_for('index', error_msg="Invalid file format. Please upload a Word Document (.docx).", active_tab="word2pdf"))
+
+@app.route('/process_pdf_solver', methods=['POST'])
+def process_pdf_solver():
+    api_key = request.form.get('api_key')
+    if not api_key:
+        return redirect(url_for('index', error_msg="Gemini API Key is required.", active_tab="pdf_solver"))
+        
+    if 'pdf_file' not in request.files:
+        return redirect(url_for('index', error_msg="Please select a PDF file.", api_key_val=api_key, active_tab="pdf_solver"))
+        
+    pdf_file = request.files['pdf_file']
+    if pdf_file.filename == '':
+        return redirect(url_for('index', error_msg="Invalid file name.", api_key_val=api_key, active_tab="pdf_solver"))
+        
+    if not pdf_file.filename.lower().endswith('.pdf'):
+        return redirect(url_for('index', error_msg="File must be a PDF document (.pdf).", api_key_val=api_key, active_tab="pdf_solver"))
+
+    pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_file.filename)
+    pdf_file.save(pdf_path)
+    
+    sanitized_path = os.path.join(app.config['UPLOAD_FOLDER'], "SANITIZED_" + pdf_file.filename)
+    try:
+        reader = PdfReader(pdf_path)
+        writer = PdfWriter()
+        for page in reader.pages:
+            writer.add_page(page)
+        with open(sanitized_path, "wb") as f:
+            writer.write(f)
+        os.remove(pdf_path)
+        pdf_path = sanitized_path
+    except Exception as clean_err:
+        print(f"Sanitization failed, using raw upload: {clean_err}")
+        if os.path.exists(sanitized_path):
+            try: os.remove(sanitized_path)
+            except: pass
+            
+    try:
+        genai.configure(api_key=api_key)
+        
+        uploaded_file = genai.upload_file(path=pdf_path, mime_type='application/pdf')
+        
+        import time
+        for _ in range(30):
+            if uploaded_file.state.name == "ACTIVE":
+                break
+            elif uploaded_file.state.name == "FAILED":
+                raise ValueError("Gagal memproses file PDF di server Google API.")
+            time.sleep(2)
+            uploaded_file = genai.get_file(uploaded_file.name)
+            
+        prompt = (
+            "Berikut adalah dokumen PDF Turnitin. Silakan analisis HANYA pada bagian teks yang memiliki warna highlight/sorotan plagiasi. "
+            "Abaikan teks yang bersih (tanpa warna). Hasilkan output berupa daftar teks asli dan hasil parafrasenya sesuai aturan format Markdown yang telah ditetapkan."
+        )
+        
+        model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_INSTRUCTION_PDF_SOLVER)
+        response = model.generate_content([uploaded_file, prompt])
+        
+        try:
+            genai.delete_file(uploaded_file.name)
+        except:
+            pass
+            
+        if not response.text:
+            raise ValueError("Google Gemini API returned empty response.")
+            
+        out_filename = "turnitin_slayer_result.docx"
+        out_path = os.path.join(app.config['UPLOAD_FOLDER'], out_filename)
+        
+        doc = Document()
+        paragraphs = response.text.split('\n')
+        for para in paragraphs:
+            if para.strip():
+                doc.add_paragraph(para.strip())
+        doc.save(out_path)
+        
+        try:
+            os.remove(pdf_path)
+        except:
+            pass
+            
+        return redirect(url_for('index', success_msg="PDF successfully analyzed! Paraphrases generated successfully.", result_file=out_filename, api_key_val=api_key, active_tab="pdf_solver"))
+        
+    except Exception as e:
+        try:
+            if os.path.exists(pdf_path):
+                os.remove(pdf_path)
+        except:
+            pass
+        return redirect(url_for('index', error_msg=f"Error occurred: {str(e)}", api_key_val=api_key, active_tab="pdf_solver"))
 
 @app.route('/download/<filename>')
 def download(filename):

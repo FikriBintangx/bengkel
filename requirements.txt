@@ -1,0 +1,5 @@
+Flask
+python-docx
+google-generativeai
+pypdf
+pdf2docx

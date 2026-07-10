@@ -5,7 +5,6 @@ from docx import Document
 from flask import Flask, request, render_template_string, send_file, redirect, url_for, jsonify
 import google.generativeai as genai
 from pypdf import PdfReader, PdfWriter
-from pdf2docx import Converter
 
 app = Flask(__name__)
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
@@ -820,6 +819,9 @@ def process_manual():
     if orig_file.filename == '' or ref_file.filename == '':
         return redirect(url_for('index', error_msg="Invalid file name.", active_tab="manual"))
         
+    if not (orig_file.filename.lower().endswith('.docx') and ref_file.filename.lower().endswith('.docx')):
+        return redirect(url_for('index', error_msg="Format file tidak didukung. Kedua file harus berupa dokumen Word (.docx)!", active_tab="manual"))
+        
     if orig_file and ref_file:
         orig_path = os.path.join(app.config['UPLOAD_FOLDER'], orig_file.filename)
         ref_path = os.path.join(app.config['UPLOAD_FOLDER'], ref_file.filename)
@@ -986,6 +988,7 @@ def process_convert():
         pdf_file.save(pdf_path)
         
         try:
+            from pdf2docx import Converter
             cv = Converter(pdf_path)
             cv.convert(docx_path, start=0, end=None)
             cv.close()

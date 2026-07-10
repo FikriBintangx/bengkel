@@ -1,0 +1,10 @@
+uploads/
+__pycache__/
+*.pyc
+*.docx
+*.pdf
+.git/
+venv/
+.agents/
+.gemini/
+*.bat

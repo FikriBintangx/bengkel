@@ -1249,11 +1249,13 @@ HTML_TEMPLATE = """
                     { text: '✍️ Set as Reference (Manual)', action: () => selectServerFile('manual', 'reference_doc', filename) },
                     { text: '🤖 Set as Original (AI Pro)', action: () => selectServerFile('ai', 'original_doc', filename) },
                     { text: '📄 Set as Original (Compare)', action: () => selectServerFile('compare_docs', 'original_doc', filename) },
-                    { text: '✍️ Set as Paraphrased (Compare)', action: () => selectServerFile('compare_docs', 'paraphrased_doc', filename) }
+                    { text: '✍️ Set as Paraphrased (Compare)', action: () => selectServerFile('compare_docs', 'paraphrased_doc', filename) },
+                    { text: '🔄 Set as Document to Convert (Word to PDF)', action: () => selectServerFile('word2pdf', 'doc_file', filename) }
                 ];
             } else {
                 items = [
-                    { text: '📕 Set as PDF Solver Input', action: () => selectServerFile('pdf_solver', 'pdf_file', filename) }
+                    { text: '📕 Set as PDF Solver Input', action: () => selectServerFile('pdf_solver', 'pdf_file', filename) },
+                    { text: '🔄 Set as PDF to Convert (PDF to Word)', action: () => selectServerFile('pdf2word', 'pdf_file', filename) }
                 ];
             }
 
@@ -1311,17 +1313,49 @@ HTML_TEMPLATE = """
             if (tabId === 'compare_docs' && fieldName === 'original_doc') labelId = 'compare-orig-label';
             if (tabId === 'compare_docs' && fieldName === 'paraphrased_doc') labelId = 'compare-para-label';
             if (tabId === 'pdf_solver' && fieldName === 'pdf_file') labelId = 'pdf-solver-label';
+            if (tabId === 'word2pdf' && fieldName === 'doc_file') labelId = 'word2pdf-doc-label';
+            if (tabId === 'pdf2word' && fieldName === 'pdf_file') labelId = 'convert-pdf-label';
             
             if (labelId) {
                 const label = document.getElementById(labelId);
                 if (label) {
-                    label.innerHTML = `<span style="color: #0f5132; font-weight: 600;">📁 Server: ${filename}</span>`;
+                    label.innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                            <span style="color: #0f5132; font-weight: 600;">📁 Server: ${filename}</span>
+                            <button type="button" onclick="resetServerFile('${tabId}', '${fieldName}', '${labelId}', event)" style="background: none; border: none; color: #dc3545; font-weight: bold; cursor: pointer; padding: 0 5px; font-size: 1.1rem; line-height: 1;">×</button>
+                        </div>
+                    `;
                 }
             }
             
             const fileInput = form.querySelector(`input[name="${fieldName}"]`);
             if (fileInput) {
                 fileInput.removeAttribute('required');
+            }
+        }
+
+        window.resetServerFile = function(tabId, fieldName, labelId, event) {
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+            const form = document.querySelector(`#${tabId} form`);
+            if (!form) return;
+            
+            const hiddenInput = form.querySelector(`input[name="server_${fieldName}"]`);
+            if (hiddenInput) {
+                hiddenInput.value = '';
+            }
+            
+            const label = document.getElementById(labelId);
+            if (label) {
+                label.innerHTML = 'Choose a file or drag it here';
+            }
+            
+            const fileInput = form.querySelector(`input[name="${fieldName}"]`);
+            if (fileInput) {
+                fileInput.value = '';
+                fileInput.setAttribute('required', 'required');
             }
         }
 

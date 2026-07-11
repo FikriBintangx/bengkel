@@ -3,7 +3,9 @@ import re
 import time
 from docx import Document
 from flask import Flask, request, render_template_string, send_file, redirect, url_for, jsonify
-import google.generativeai as genai
+from google import genai
+from google.genai import types as genai_types
+
 from pypdf import PdfReader, PdfWriter
 
 import random as _random
@@ -1879,31 +1881,33 @@ def check_api():
             else:
                 return jsonify({'status': 'error', 'message': f'OpenRouter Error: {res.text}'})
         else:
-            genai.configure(api_key=api_key)
+            client = genai.Client(api_key=api_key)
             models_to_try = [
-                'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
-                'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
-                'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
+                'gemini-2.0-flash', 'gemini-2.5-flash',
+                'gemini-2.5-flash-lite', 'gemini-1.5-flash',
                 'gemini-1.5-pro', 'gemini-2.5-pro'
             ]
             response = None
             last_err = None
-            
+
             for model_name in models_to_try:
                 try:
-                    model = genai.GenerativeModel(model_name)
-                    response = model.generate_content("Tes koneksi. Balas dengan kata OK saja.")
+                    response = client.models.generate_content(
+                        model=model_name,
+                        contents="Tes koneksi. Balas dengan kata OK saja."
+                    )
                     if response and response.text:
                         break
                 except Exception as err:
                     last_err = err
-                    
+
             if response and response.text:
                 return jsonify({'status': 'success'})
             else:
                 return jsonify({'status': 'error', 'message': f'Respons kosong atau error dari API. Terakhir error: {last_err}'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
+
 
 def resolve_file(form_server_param, file_key, allowed_ext):
     server_file = request.form.get(form_server_param)
@@ -2281,15 +2285,35 @@ def process_ai():
                     
         out_filename = "AI_PARAFRASED_" + orig_name
         out_path = os.path.join(app.config['UPLOAD_FOLDER'], out_filename)
+
+        # ---- TRIM OUTPUT: hapus paragraf sebelum BAB I ----
+        # Temukan index paragraf BAB I pertama
+        bab1_idx = None
+        for idx, p in enumerate(doc.paragraphs):
+            t = p.text.strip()
+            if re.match(r'^BAB\s+(I|1|SATU)\b', t, re.IGNORECASE):
+                bab1_idx = idx
+                break
+
+        # Hapus semua paragraf sebelum BAB I (cover, abstrak, kata pengantar, daftar isi)
+        if bab1_idx and bab1_idx > 0:
+            paras_to_delete = list(doc.paragraphs[:bab1_idx])
+            for p in paras_to_delete:
+                try:
+                    p._element.getparent().remove(p._element)
+                except Exception:
+                    pass
+
         doc.save(out_path)
-        
+
         if is_temp_orig:
             try:
                 os.remove(orig_path)
             except:
                 pass
-            
-        return redirect(url_for('index', success_msg=f"Successfully paraphrased {replaced_count} paragraphs!", result_file=out_filename, api_key_val=api_key, active_tab="ai"))
+
+        return redirect(url_for('index', success_msg=f"Berhasil memparafrase {replaced_count} paragraf! Output: BAB I s/d Daftar Pustaka.", result_file=out_filename, api_key_val=api_key, active_tab="ai"))
+
         
     except Exception as e:
         try:

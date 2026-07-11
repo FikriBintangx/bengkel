@@ -1,5 +1,5 @@
 Flask
 python-docx
-google-generativeai
+google-genai
 pypdf
 pdf2docx

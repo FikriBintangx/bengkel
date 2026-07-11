@@ -151,6 +151,114 @@ CONJUNCTIONS_PROTECT = [
     "selain itu", "di samping itu", "lebih lanjut", "lebih jauh",
 ]
 
+# --- Parafrase level frasa (lebih kuat dari sekadar sinonim kata) ---
+PHRASE_PARAPHRASE = {
+    # Pembuka kalimat akademik
+    "penelitian ini bertujuan untuk": "studi ini dirancang guna",
+    "penelitian ini bertujuan": "studi ini memiliki sasaran",
+    "tujuan dari penelitian ini": "sasaran dari studi ini",
+    "tujuan penelitian ini": "sasaran studi ini",
+    "dalam penelitian ini": "dalam studi ini",
+    "hasil penelitian ini": "temuan studi ini",
+    "berdasarkan hasil penelitian": "berlandaskan temuan studi",
+    "berdasarkan penelitian": "berlandaskan studi",
+    "penelitian ini dilakukan": "studi ini dijalankan",
+    "penelitian yang dilakukan": "studi yang dijalankan",
+
+    # Frasa umum akademik
+    "dapat disimpulkan bahwa": "dapat ditarik kesimpulan bahwa",
+    "dapat disimpulkan": "dapat diambil kesimpulan",
+    "dengan demikian dapat": "maka dari itu dapat",
+    "sehingga dapat disimpulkan": "sehingga dapat diambil kesimpulan",
+    "berdasarkan uraian di atas": "berdasarkan pemaparan tersebut",
+    "berdasarkan uraian tersebut": "berlandaskan pemaparan di atas",
+    "sebagaimana yang telah dijelaskan": "sebagaimana yang telah dipaparkan",
+    "sebagaimana telah disebutkan": "seperti yang telah diuraikan",
+    "seperti yang telah dijelaskan": "sebagaimana telah dipaparkan",
+    "pada penelitian sebelumnya": "pada studi terdahulu",
+    "pada studi sebelumnya": "pada penelitian terdahulu",
+    "yang telah dilakukan sebelumnya": "yang pernah dilaksanakan sebelumnya",
+    "yang dilakukan sebelumnya": "yang pernah dilaksanakan",
+    "menurut para ahli": "menurut kalangan pakar",
+    "menurut beberapa ahli": "menurut sejumlah pakar",
+    "para ahli menyatakan": "kalangan pakar mengungkapkan",
+
+    # Penggunaan sistem
+    "sistem ini dapat": "perangkat ini mampu",
+    "sistem ini digunakan": "perangkat ini dimanfaatkan",
+    "sistem yang digunakan": "perangkat yang dimanfaatkan",
+    "sistem yang dikembangkan": "perangkat lunak yang dibangun",
+    "sistem yang dibangun": "perangkat lunak yang dikembangkan",
+    "digunakan untuk membantu": "dimanfaatkan guna mempermudah",
+    "digunakan untuk mempermudah": "dimanfaatkan guna membantu",
+    "digunakan dalam": "dimanfaatkan dalam",
+    "digunakan pada": "dimanfaatkan pada",
+    "dapat digunakan": "dapat dimanfaatkan",
+    "yang dapat membantu": "yang dapat mempermudah",
+    "untuk membantu": "guna mempermudah",
+    "dalam membantu": "dalam mempermudah",
+    "membantu dalam": "mempermudah dalam",
+    "membantu proses": "mempermudah tahapan",
+
+    # Masalah dan solusi
+    "permasalahan yang ada": "kendala yang dihadapi",
+    "masalah yang dihadapi": "kendala yang ada",
+    "masalah yang ada": "permasalahan yang dihadapi",
+    "untuk mengatasi masalah": "guna menyelesaikan kendala",
+    "untuk mengatasi permasalahan": "guna mengatasi kendala",
+    "dalam mengatasi masalah": "dalam menyelesaikan permasalahan",
+    "solusi yang ditawarkan": "solusi yang diajukan",
+    "solusi dari permasalahan": "jawaban atas kendala",
+
+    # Metodologi
+    "metode yang digunakan": "pendekatan yang dimanfaatkan",
+    "metode yang digunakan dalam": "pendekatan yang digunakan dalam",
+    "metode pengembangan": "pendekatan pengembangan",
+    "dengan menggunakan metode": "dengan memanfaatkan pendekatan",
+    "menggunakan metode": "memanfaatkan pendekatan",
+    "tahapan pengembangan": "langkah-langkah pengembangan",
+    "proses pengembangan": "tahapan perancangan",
+    "proses perancangan": "langkah-langkah perancangan",
+    "proses pembuatan": "tahapan pembuatan",
+    "dalam proses": "dalam tahapan",
+    "melalui proses": "melalui tahapan",
+
+    # Kesimpulan dan saran
+    "berdasarkan pengujian yang dilakukan": "berlandaskan pengujian yang dijalankan",
+    "pengujian yang dilakukan": "pengujian yang dijalankan",
+    "hasil pengujian menunjukkan": "hasil pengujian memperlihatkan",
+    "hasil pengujian menunjukkan bahwa": "temuan pengujian memperlihatkan bahwa",
+    "menunjukkan bahwa sistem": "memperlihatkan bahwa perangkat",
+    "telah berhasil": "telah sukses",
+    "berhasil diimplementasikan": "sukses diterapkan",
+    "berhasil dikembangkan": "sukses dibangun",
+    "berhasil dirancang": "sukses didesain",
+
+    # Kata penghubung dan penyambung
+    "hal ini menunjukkan": "hal ini memperlihatkan",
+    "hal ini menunjukkan bahwa": "hal ini memperlihatkan bahwa",
+    "hal tersebut menunjukkan": "hal tersebut memperlihatkan",
+    "hal ini disebabkan": "hal ini diakibatkan",
+    "hal tersebut disebabkan": "hal tersebut diakibatkan",
+    "hal ini dikarenakan": "hal ini disebabkan oleh fakta",
+    "hal ini karena": "hal ini disebabkan",
+    "karena hal tersebut": "disebabkan hal tersebut",
+
+    # Manfaat dan nilai
+    "manfaat yang diperoleh": "kegunaan yang didapat",
+    "manfaat dari": "kegunaan dari",
+    "memberikan manfaat": "memberikan kegunaan",
+    "sangat bermanfaat": "amat berguna",
+    "bermanfaat bagi": "berguna bagi",
+    "memberikan kemudahan": "memberikan kelancaran",
+    "mempermudah pekerjaan": "membantu pekerjaan",
+    "mempermudah proses": "membantu tahapan",
+    "meningkatkan efisiensi": "memaksimalkan efisiensi",
+    "meningkatkan efektivitas": "memaksimalkan efektivitas",
+    "meningkatkan kualitas": "memaksimalkan kualitas",
+    "meningkatkan kinerja": "memaksimalkan performa",
+}
+
 def _is_protected_line(text: str) -> bool:
     """Returns True if this line should NOT be paraphrased at all."""
     t = text.strip().lower()
@@ -190,18 +298,20 @@ def offline_paraphrase(text):
         if not sentence.strip():
             continue
 
-        # Lindungi konjungsi jamak dulu
-        conj_holders = {}
-        temp = sentence
-        for ci, conj in enumerate(sorted(CONJUNCTIONS_PROTECT, key=len, reverse=True)):
-            pattern = re.compile(re.escape(conj), re.IGNORECASE)
-            for m in pattern.finditer(temp):
-                key = f"__CONJ_{ci}_{len(conj_holders)}__"
-                conj_holders[key] = m.group(0)
-            temp = pattern.sub(lambda m, k=f"__CONJ_{ci}_{len(conj_holders)-1}__": k if m.group(0) in conj_holders.values() else m.group(0), temp)
+        # STEP 0: Parafrase level frasa dulu (paling kuat)
+        temp2 = sentence
+        for phrase_orig, phrase_para in sorted(PHRASE_PARAPHRASE.items(), key=lambda x: len(x[0]), reverse=True):
+            pattern = re.compile(re.escape(phrase_orig), re.IGNORECASE)
+            def phrase_replacer(m, orig=phrase_orig, para=phrase_para):
+                matched = m.group(0)
+                # Preserve capitalization of first letter
+                if matched[0].isupper():
+                    return para[0].upper() + para[1:]
+                return para
+            temp2 = pattern.sub(phrase_replacer, temp2)
+
         # Re-do proteksi konjungsi dengan cara yang lebih bersih
         conj_holders2 = {}
-        temp2 = sentence
         for ci, conj in enumerate(sorted(CONJUNCTIONS_PROTECT, key=len, reverse=True)):
             key = f"__CONJ_{ci}__"
             new_t = re.sub(re.escape(conj), key, temp2, flags=re.IGNORECASE)

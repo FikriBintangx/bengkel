@@ -1829,47 +1829,45 @@ def process_convert():
 
 @app.route('/process_word2pdf', methods=['POST'])
 def process_word2pdf():
-    if 'doc_file' not in request.files:
-        return redirect(url_for('index', error_msg="No file part", active_tab="word2pdf"))
+    try:
+        docx_name, docx_path, is_temp_docx = resolve_file('server_doc_file', 'doc_file', '.docx')
+    except Exception as e:
+        return redirect(url_for('index', error_msg=str(e), active_tab="word2pdf"))
         
-    doc_file = request.files['doc_file']
-    if doc_file.filename == '':
-        return redirect(url_for('index', error_msg="No selected file", active_tab="word2pdf"))
+    pdf_filename = docx_name[:-5] + ".pdf"
+    pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_filename)
+    
+    try:
+        import pythoncom
+        pythoncom.CoInitialize()
         
-    if doc_file and doc_file.filename.lower().endswith('.docx'):
-        docx_path = os.path.join(app.config['UPLOAD_FOLDER'], doc_file.filename)
-        pdf_filename = doc_file.filename[:-5] + ".pdf"
-        pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_filename)
-        
-        doc_file.save(docx_path)
-        
+        import win32com.client
+        word = win32com.client.Dispatch('Word.Application')
+        word.Visible = False
+        word.DisplayAlerts = 0
+        word.ScreenUpdating = False
         try:
-            import pythoncom
-            pythoncom.CoInitialize()
+            doc = word.Documents.Open(docx_path)
+            doc.SaveAs(pdf_path, FileFormat=17) # 17 is wdFormatPDF
+            doc.Close()
+        finally:
+            word.Quit()
             
-            import win32com.client
-            word = win32com.client.Dispatch('Word.Application')
-            word.Visible = False
-            try:
-                doc = word.Documents.Open(docx_path)
-                doc.SaveAs(pdf_path, FileFormat=17) # 17 is wdFormatPDF
-                doc.Close()
-            finally:
-                word.Quit()
-                
+        if is_temp_docx:
             try:
                 os.remove(docx_path)
             except:
                 pass
-                
-            return redirect(url_for('index', success_msg="Conversion successful!", result_file=pdf_filename, active_tab="word2pdf"))
-        except Exception as e:
+            
+        return redirect(url_for('index', success_msg="Conversion successful!", result_file=pdf_filename, active_tab="word2pdf"))
+    except Exception as e:
+        if is_temp_docx:
             try:
                 if os.path.exists(docx_path):
                     os.remove(docx_path)
             except:
                 pass
-            return redirect(url_for('index', error_msg=f"Error occurred during conversion: {str(e)}", active_tab="word2pdf"))
+        return redirect(url_for('index', error_msg=f"Error occurred during conversion: {str(e)}", active_tab="word2pdf"))
             
     return redirect(url_for('index', error_msg="Invalid file format. Please upload a Word Document (.docx).", active_tab="word2pdf"))
 

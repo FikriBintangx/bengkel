@@ -77,60 +77,137 @@ EXCLUDE_PHRASES = [
     "lbph"
 ]
 
+ACTIVE_TO_PASSIVE_VERBS = {
+    "menerapkan": "diterapkan",
+    "menggunakan": "digunakan",
+    "memakai": "dipakai",
+    "merancang": "dirancang",
+    "mendesain": "didesain",
+    "membuat": "dibuat",
+    "menyusun": "disusun",
+    "menjelaskan": "dijelaskan",
+    "menerangkan": "diterangkan",
+    "menemukan": "ditemukan",
+    "memperoleh": "diperoleh",
+    "menghasilkan": "dihasilkan",
+    "melakukan": "dilakukan",
+    "menjalankan": "dijalankan",
+    "mengembangkan": "dikembangkan",
+    "meningkatkan": "ditingkatkan",
+    "memaksimalkan": "dimaksimalkan",
+    "menyatakan": "dinyatakan",
+    "mengungkapkan": "diungkapkan",
+    "mengemukakan": "dikemukakan",
+    "menganalisis": "dianalisis",
+    "mengkaji": "dikaji",
+    "mempelajari": "dipelajari",
+    "membahas": "dibahas",
+    "menyelesaikan": "diselesaikan",
+    "mengatasi": "diatasi",
+    "membantu": "dibantu",
+    "mempermudah": "dipermudah",
+    "mengidentifikasi": "diidentifikasi",
+    "menentukan": "ditentukan",
+    "mengolah": "diolah",
+    "memproses": "diproses"
+}
+
+def shift_sentence_syntax(sentence):
+    if not sentence or len(sentence.strip()) < 10:
+        return sentence
+    words = sentence.split()
+    for i, word in enumerate(words):
+        word_clean = word.strip(",.!?\"()").lower()
+        if word_clean in ACTIVE_TO_PASSIVE_VERBS:
+            passive_verb = ACTIVE_TO_PASSIVE_VERBS[word_clean]
+            subject_words = words[:i]
+            object_words = words[i+1:]
+            
+            if len(subject_words) > 0 and len(object_words) > 0:
+                subject = " ".join(subject_words)
+                obj_text = " ".join(object_words)
+                
+                end_punc = ""
+                if subject[-1] in ['.', ',', '!', '?']:
+                    end_punc = subject[-1]
+                    subject = subject[:-1]
+                
+                obj_punc = ""
+                if obj_text[-1] in ['.', ',', '!', '?']:
+                    obj_punc = obj_text[-1]
+                    obj_text = obj_text[:-1]
+                    
+                if obj_text:
+                    obj_text = obj_text[0].upper() + obj_text[1:]
+                
+                if subject:
+                    first_word = subject.split()[0]
+                    if not first_word.isupper() and len(first_word) > 1:
+                        subject = subject[0].lower() + subject[1:]
+                
+                return f"{obj_text} {passive_verb} oleh {subject}{obj_punc or end_punc}"
+    return sentence
+
 def offline_paraphrase(text):
     if not text:
         return text
         
-    placeholders = {}
-    temp_text = text
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    processed_sentences = []
     
-    # Sort phrases by length descending to match longest phrases first
-    sorted_phrases = sorted(EXCLUDE_PHRASES, key=len, reverse=True)
-    
-    for idx, phrase in enumerate(sorted_phrases):
-        pattern = re.compile(r'\b' + re.escape(phrase) + r'\b', re.IGNORECASE)
-        matches = pattern.findall(temp_text)
-        for match in matches:
-            key = f"__EXCLUDE_PLACEHOLDER_{idx}_{len(placeholders)}__"
-            placeholders[key] = match
-            temp_text = temp_text.replace(match, key)
-            
-    words = re.findall(r'\b\w+(?:-\w+)*\b|[^\w\s]', temp_text)
-    new_words = []
-    
-    for token in words:
-        if token.startswith("__EXCLUDE_PLACEHOLDER_") and token.endswith("__"):
-            new_words.append(token)
-            continue
-            
-        if token.isalnum():
-            token_lower = token.lower()
-            if token_lower in INDONESIAN_SYNONYMS:
-                syn = INDONESIAN_SYNONYMS[token_lower]
-                if token.istitle():
-                    syn = syn.capitalize()
-                elif token.isupper():
-                    syn = syn.upper()
-                new_words.append(syn)
+    for sentence in sentences:
+        shifted = shift_sentence_syntax(sentence)
+        
+        placeholders = {}
+        temp_text = shifted
+        sorted_phrases = sorted(EXCLUDE_PHRASES, key=len, reverse=True)
+        
+        for idx, phrase in enumerate(sorted_phrases):
+            pattern = re.compile(r'\b' + re.escape(phrase) + r'\b', re.IGNORECASE)
+            matches = pattern.findall(temp_text)
+            for match in matches:
+                key = f"__EXCLUDE_PLACEHOLDER_{idx}_{len(placeholders)}__"
+                placeholders[key] = match
+                temp_text = temp_text.replace(match, key)
+                
+        words = re.findall(r'\b\w+(?:-\w+)*\b|[^\w\s]', temp_text)
+        new_words = []
+        
+        for token in words:
+            if token.startswith("__EXCLUDE_PLACEHOLDER_") and token.endswith("__"):
+                new_words.append(token)
+                continue
+                
+            if token.isalnum():
+                token_lower = token.lower()
+                if token_lower in INDONESIAN_SYNONYMS:
+                    syn = INDONESIAN_SYNONYMS[token_lower]
+                    if token.istitle():
+                        syn = syn.capitalize()
+                    elif token.isupper():
+                        syn = syn.upper()
+                    new_words.append(syn)
+                else:
+                    new_words.append(token)
             else:
                 new_words.append(token)
-        else:
-            new_words.append(token)
+                
+        result = ""
+        for i, token in enumerate(new_words):
+            if i > 0:
+                prev = new_words[i-1]
+                if token.isalnum() or token.startswith("__EXCLUDE_"):
+                    if prev.isalnum() or prev.endswith("__") or prev not in ['"', "'", '(', '[', '{']:
+                        result += " "
+            result += token
             
-    result = ""
-    for i, token in enumerate(new_words):
-        if i > 0:
-            prev = new_words[i-1]
-            if token.isalnum() or token.startswith("__EXCLUDE_"):
-                if prev.isalnum() or prev.endswith("__") or prev not in ['"', "'", '(', '[', '{']:
-                    result += " "
-        result += token
+        for key, original in placeholders.items():
+            result = result.replace(key, original)
+            
+        result = re.sub(r'\s+', ' ', result).strip()
+        processed_sentences.append(result)
         
-    for key, original in placeholders.items():
-        result = result.replace(key, original)
-        
-    result = re.sub(r'\s+', ' ', result).strip()
-    return result
+    return " ".join(processed_sentences)
 
 app = Flask(__name__)
 if os.environ.get('VERCEL'):

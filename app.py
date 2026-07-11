@@ -599,6 +599,18 @@ HTML_TEMPLATE = """
             <!-- TAB 1: TURNITIN MANUAL -->
             <div id="manual" class="tab-content active">
                 <form action="/process_manual" method="POST" enctype="multipart/form-data">
+                    {% if has_active_replacements %}
+                    <div style="background: #fdfdfd; border: 1px solid #e9e9e7; padding: 16px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                        <div>
+                            <strong style="font-size: 0.9rem; color: #1a1a1a; display: flex; align-items: center; gap: 6px;">⚡ Sesi Revisi Aktif Ditemukan</strong>
+                            <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: var(--secondary-text);">Ada {{ active_replacements_count }} kata/kalimat hasil parafrase PDF Solver siap diaplikasikan.</p>
+                        </div>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #1a1a1a; padding: 6px 12px; background: #f1f1ef; border-radius: 6px; border: 1px solid var(--border-color);">
+                            <input type="checkbox" name="use_active_session" id="use_active_session" onchange="toggleManualRefUpload()" style="margin: 0;"> Gunakan Sesi
+                        </label>
+                    </div>
+                    {% endif %}
+
                     <div class="form-group">
                         <label>Original Skripsi Document (.docx)</label>
                         <div class="file-upload-wrapper">
@@ -608,12 +620,12 @@ HTML_TEMPLATE = """
                         </div>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" id="manual_ref_group">
                         <label>Paraphrase Reference Document (.docx)</label>
                         <div class="file-upload-wrapper">
                             <span class="upload-icon">✍️</span>
                             <div class="file-name-label" id="manual-ref-label">Choose a file or drag it here</div>
-                            <input type="file" name="reference_doc" accept=".docx" required onchange="updateLabel(this, 'manual-ref-label')">
+                            <input type="file" name="reference_doc" id="manual_ref_input" accept=".docx" required onchange="updateLabel(this, 'manual-ref-label')">
                         </div>
                     </div>
 
@@ -806,6 +818,19 @@ HTML_TEMPLATE = """
             }
         }
 
+        function toggleManualRefUpload() {
+            const checkbox = document.getElementById('use_active_session');
+            const refGroup = document.getElementById('manual_ref_group');
+            const refInput = document.getElementById('manual_ref_input');
+            if (checkbox && checkbox.checked) {
+                if (refGroup) refGroup.style.display = 'none';
+                if (refInput) refInput.removeAttribute('required');
+            } else {
+                if (refGroup) refGroup.style.display = 'block';
+                if (refInput) refInput.setAttribute('required', 'required');
+            }
+        }
+
         // Initialize active tab based on Hash or parameter
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -819,6 +844,7 @@ HTML_TEMPLATE = """
             }
             toggleAPIKeyField();
             toggleAPIKeyFieldSolver();
+            toggleManualRefUpload();
         });
 
         function checkAPIKey() {
@@ -1024,7 +1050,28 @@ def index():
     error_msg = request.args.get('error_msg')
     result_file = request.args.get('result_file')
     api_key_val = request.args.get('api_key_val', '')
-    return render_template_string(HTML_TEMPLATE, success_msg=success_msg, error_msg=error_msg, result_file=result_file, api_key_val=api_key_val)
+    
+    import json
+    active_reps_path = os.path.join(app.config['UPLOAD_FOLDER'], 'active_replacements.json')
+    has_active_replacements = False
+    active_replacements_count = 0
+    if os.path.exists(active_reps_path):
+        try:
+            with open(active_reps_path, 'r') as f:
+                reps = json.load(f)
+                if reps:
+                    has_active_replacements = True
+                    active_replacements_count = len(reps)
+        except:
+            pass
+            
+    return render_template_string(HTML_TEMPLATE, 
+                                  success_msg=success_msg, 
+                                  error_msg=error_msg, 
+                                  result_file=result_file, 
+                                  api_key_val=api_key_val,
+                                  has_active_replacements=has_active_replacements,
+                                  active_replacements_count=active_replacements_count)
 
 @app.route('/check_api', methods=['POST'])
 def check_api():
@@ -1079,29 +1126,57 @@ def check_api():
 
 @app.route('/process_manual', methods=['POST'])
 def process_manual():
-    if 'original_doc' not in request.files or 'reference_doc' not in request.files:
-        return redirect(url_for('index', error_msg="Please select both documents.", active_tab="manual"))
+    use_active_session = request.form.get('use_active_session') == 'on'
+    
+    if 'original_doc' not in request.files:
+        return redirect(url_for('index', error_msg="Please select the original document.", active_tab="manual"))
         
     orig_file = request.files['original_doc']
-    ref_file = request.files['reference_doc']
-    
-    if orig_file.filename == '' or ref_file.filename == '':
+    if orig_file.filename == '':
         return redirect(url_for('index', error_msg="Invalid file name.", active_tab="manual"))
         
-    if not (orig_file.filename.lower().endswith('.docx') and ref_file.filename.lower().endswith('.docx')):
-        return redirect(url_for('index', error_msg="Format file tidak didukung. Kedua file harus berupa dokumen Word (.docx)!", active_tab="manual"))
+    if not orig_file.filename.lower().endswith('.docx'):
+        return redirect(url_for('index', error_msg="Format file tidak didukung. File original harus berupa dokumen Word (.docx)!", active_tab="manual"))
         
-    if orig_file and ref_file:
-        orig_path = os.path.join(app.config['UPLOAD_FOLDER'], orig_file.filename)
+    orig_path = os.path.join(app.config['UPLOAD_FOLDER'], orig_file.filename)
+    orig_file.save(orig_path)
+    
+    reps = []
+    active_reps_path = os.path.join(app.config['UPLOAD_FOLDER'], 'active_replacements.json')
+    
+    if use_active_session:
+        import json
+        if os.path.exists(active_reps_path):
+            try:
+                with open(active_reps_path, 'r') as f:
+                    reps = json.load(f)
+            except Exception as e:
+                return redirect(url_for('index', error_msg=f"Error reading session replacements: {str(e)}", active_tab="manual"))
+        if not reps:
+            return redirect(url_for('index', error_msg="No active session replacements found.", active_tab="manual"))
+    else:
+        if 'reference_doc' not in request.files:
+            return redirect(url_for('index', error_msg="Please upload reference document.", active_tab="manual"))
+        ref_file = request.files['reference_doc']
+        if ref_file.filename == '':
+            return redirect(url_for('index', error_msg="Invalid reference file name.", active_tab="manual"))
+        if not ref_file.filename.lower().endswith('.docx'):
+            return redirect(url_for('index', error_msg="Reference document must be Word (.docx)!", active_tab="manual"))
+            
         ref_path = os.path.join(app.config['UPLOAD_FOLDER'], ref_file.filename)
-        
-        orig_file.save(orig_path)
         ref_file.save(ref_path)
         
         try:
             reps = parse_revisi(ref_path)
+            try: os.remove(ref_path)
+            except: pass
+        except Exception as e:
+            return redirect(url_for('index', error_msg=f"Error parsing reference file: {str(e)}", active_tab="manual"))
+            
+    if reps:
+        try:
             if not reps:
-                return redirect(url_for('index', error_msg="No replacements found in reference doc.", active_tab="manual"))
+                return redirect(url_for('index', error_msg="No replacements found.", active_tab="manual"))
                 
             out_filename = "PARAFRASED_" + orig_file.filename
             out_path = os.path.join(app.config['UPLOAD_FOLDER'], out_filename)
@@ -1110,13 +1185,16 @@ def process_manual():
             
             try:
                 os.remove(orig_path)
-                os.remove(ref_path)
             except:
                 pass
                 
+            if use_active_session:
+                try: os.remove(active_reps_path)
+                except: pass
+                
             return redirect(url_for('index', success_msg=f"Success! Replaced {replaced_count} matches.", result_file=out_filename, active_tab="manual"))
         except Exception as e:
-            return redirect(url_for('index', error_msg=f"Error occurred: {str(e)}", active_tab="manual"))
+            return redirect(url_for('index', error_msg=f"Error occurred during replacement: {str(e)}", active_tab="manual"))
             
     return redirect(url_for('index', error_msg="Unknown error.", active_tab="manual"))
 
@@ -1495,6 +1573,42 @@ def process_pdf_solver():
             
         if not response_text:
             raise ValueError(f"Paraphrase engine returned empty response or failed. Last error: {last_err}")
+            
+        # Parse replacements from response_text and save to session json file
+        import json
+        try:
+            reps = []
+            current_original = None
+            current_paraphrase = None
+            for line in response_text.split('\n'):
+                txt = line.strip()
+                if not txt:
+                    continue
+                orig_match = re.search(r'\*\*Teks Asli:\*\*\s*(.*)$', txt)
+                para_match = re.search(r'\*\*Hasil Parafrase:\*\*\s*(.*)$', txt)
+                if orig_match:
+                    val = orig_match.group(1).strip()
+                    if val.startswith('"') and val.endswith('"'): val = val[1:-1]
+                    current_original = val.strip()
+                elif para_match:
+                    val = para_match.group(1).strip()
+                    if val.startswith('**'): val = val[2:]
+                    if val.endswith('**'): val = val[:-2]
+                    val = val.strip()
+                    if val.startswith('"') and val.endswith('"'): val = val[1:-1]
+                    current_paraphrase = val.strip()
+                    if current_original:
+                        current_paraphrase = current_paraphrase.replace("**", "")
+                        reps.append([current_original, current_paraphrase])
+                        current_original = None
+                        current_paraphrase = None
+            
+            if reps:
+                active_reps_path = os.path.join(app.config['UPLOAD_FOLDER'], 'active_replacements.json')
+                with open(active_reps_path, 'w') as f:
+                    json.dump(reps, f)
+        except Exception as parse_save_err:
+            print(f"Failed to save active replacements: {parse_save_err}")
             
         out_filename = "turnitin_slayer_result.docx"
         out_path = os.path.join(app.config['UPLOAD_FOLDER'], out_filename)

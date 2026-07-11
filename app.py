@@ -2082,34 +2082,42 @@ def process_ai():
                 else:
                     last_err = res.text
             else:
-                genai.configure(api_key=api_key)
-                uploaded_file = genai.upload_file(path=pdf_path, mime_type='application/pdf')
+                _client = genai.Client(api_key=api_key)
+                uploaded_file = _client.files.upload(
+                    file=pdf_path,
+                    config={'mime_type': 'application/pdf'}
+                )
                 import time
                 for _ in range(30):
-                    if uploaded_file.state.name == "ACTIVE":
+                    _f = _client.files.get(name=uploaded_file.name)
+                    if _f.state.name == "ACTIVE":
+                        uploaded_file = _f
                         break
-                    elif uploaded_file.state.name == "FAILED":
+                    elif _f.state.name == "FAILED":
                         raise ValueError("Gagal memproses file PDF di server Google API.")
                     time.sleep(2)
-                    uploaded_file = genai.get_file(uploaded_file.name)
-                    
+
                 models_to_try = [
-                    'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
-                    'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
-                    'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
+                    'gemini-2.0-flash', 'gemini-2.5-flash',
+                    'gemini-2.5-flash-lite', 'gemini-1.5-flash',
                     'gemini-1.5-pro', 'gemini-2.5-pro'
                 ]
                 for model_name in models_to_try:
                     try:
-                        model = genai.GenerativeModel(model_name, system_instruction=SYSTEM_INSTRUCTION_PDF_SOLVER)
-                        response = model.generate_content([uploaded_file, prompt])
+                        response = _client.models.generate_content(
+                            model=model_name,
+                            config=genai_types.GenerateContentConfig(
+                                system_instruction=SYSTEM_INSTRUCTION_PDF_SOLVER
+                            ),
+                            contents=[uploaded_file, prompt]
+                        )
                         if response and response.text:
                             response_text = response.text
                             break
                     except Exception as model_err:
                         last_err = model_err
                 try:
-                    genai.delete_file(uploaded_file.name)
+                    _client.files.delete(name=uploaded_file.name)
                 except:
                     pass
                     
@@ -2251,17 +2259,21 @@ def process_ai():
                     else:
                         last_err = res.text
                 else:
-                    genai.configure(api_key=api_key)
+                    _client = genai.Client(api_key=api_key)
                     models_to_try = [
-                        'gemini-2.0-flash-latest', 'gemini-2.0-flash',
-                        'gemini-2.5-flash', 'gemini-2.5-flash-lite',
-                        'gemini-1.5-flash', 'gemini-1.5-flash-latest',
+                        'gemini-2.0-flash', 'gemini-2.5-flash',
+                        'gemini-2.5-flash-lite', 'gemini-1.5-flash',
                         'gemini-1.5-pro', 'gemini-2.5-pro'
                     ]
                     for model_name in models_to_try:
                         try:
-                            model = genai.GenerativeModel(model_name, system_instruction=PARAPHRASE_SYSTEM_PROMPT)
-                            response = model.generate_content(original_text)
+                            response = _client.models.generate_content(
+                                model=model_name,
+                                config=genai_types.GenerateContentConfig(
+                                    system_instruction=PARAPHRASE_SYSTEM_PROMPT
+                                ),
+                                contents=original_text
+                            )
                             if response and response.text:
                                 para_text = response.text.strip()
                                 break
@@ -2543,38 +2555,46 @@ def process_pdf_solver():
             else:
                 last_err = res.text
         else:
-            genai.configure(api_key=api_key)
-            uploaded_file = genai.upload_file(path=pdf_path, mime_type='application/pdf')
-            
+            _client = genai.Client(api_key=api_key)
+            uploaded_file = _client.files.upload(
+                file=pdf_path,
+                config={'mime_type': 'application/pdf'}
+            )
+
             import time
             for _ in range(30):
-                if uploaded_file.state.name == "ACTIVE":
+                _f = _client.files.get(name=uploaded_file.name)
+                if _f.state.name == "ACTIVE":
+                    uploaded_file = _f
                     break
-                elif uploaded_file.state.name == "FAILED":
+                elif _f.state.name == "FAILED":
                     raise ValueError("Gagal memproses file PDF di server Google API.")
                 time.sleep(2)
-                uploaded_file = genai.get_file(uploaded_file.name)
-                
+
             models_to_try = [
-                'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
-                'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
-                'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
+                'gemini-2.0-flash', 'gemini-2.5-flash',
+                'gemini-2.5-flash-lite', 'gemini-1.5-flash',
                 'gemini-1.5-pro', 'gemini-2.5-pro'
             ]
-            
+
             for model_name in models_to_try:
                 try:
-                    model = genai.GenerativeModel(model_name, system_instruction=SYSTEM_INSTRUCTION_PDF_SOLVER)
-                    response = model.generate_content([uploaded_file, prompt])
+                    response = _client.models.generate_content(
+                        model=model_name,
+                        config=genai_types.GenerateContentConfig(
+                            system_instruction=SYSTEM_INSTRUCTION_PDF_SOLVER
+                        ),
+                        contents=[uploaded_file, prompt]
+                    )
                     if response and response.text:
                         response_text = response.text
                         break
                 except Exception as model_err:
                     print(f"Failed using model {model_name}: {model_err}")
                     last_err = model_err
-                    
+
             try:
-                genai.delete_file(uploaded_file.name)
+                _client.files.delete(name=uploaded_file.name)
             except:
                 pass
             

@@ -247,6 +247,33 @@ INDONESIAN_SYNONYMS_MULTI = {
     "tata kelola":         ["pengelolaan", "manajemen", "pengaturan"],
     "pemangku":            ["pemegang", "pihak", "pelaku"],
     "krusial":             ["penting", "mendasar", "vital"],
+
+    # --- Extra naturalizer: kata yg masih muncul dari Gemini engine ---
+    "diarsitekturi":       ["dirancang", "dikembangkan", "dibangun"],
+    "mengarsitekturi":     ["merancang", "membangun", "mengembangkan"],
+    "konstelasi":          ["kondisi", "situasi", "keadaan"],
+    "mengondisikan":       ["menyesuaikan", "mengatur", "mengarahkan"],
+    "mengonseptualisasi":  ["merumuskan", "menyusun konsep", "menggambarkan"],
+    "konseptualisasi":     ["perumusan", "penyusunan konsep", "gambaran"],
+    "mentranskripsi":      ["mencatat", "merekam", "menyalin"],
+    "mentransformasi":     ["mengubah", "mengonversi", "mengalihkan"],
+    "mengkalkulasi":       ["menghitung", "menentukan nilai", "mengukur"],
+    "kalkulasi":           ["perhitungan", "pengukuran", "penentuan nilai"],
+    "rekognisi":           ["pengenalan", "identifikasi", "deteksi"],
+    "menganalisis":        ["mengkaji", "menelaah", "membahas"],
+    "menganalisa":         ["mengkaji", "menelaah", "membahas"],
+    "urgensi":             ["kepentingan", "kebutuhan mendesak", "prioritas"],
+    "urgen":               ["mendesak", "penting", "perlu segera"],
+    "esensial":            ["penting", "mendasar", "pokok"],
+    "fundamental":         ["mendasar", "pokok", "inti"],
+    "substansial":         ["berarti", "signifikan", "penting"],
+    "substansi":           ["isi", "inti", "pokok"],
+    "konkret":             ["nyata", "jelas", "spesifik"],
+    "kompetitif":          ["bersaing", "unggul", "andal"],
+    "progresif":           ["berkembang", "maju", "meningkat"],
+    "prospektif":          ["menjanjikan", "berpotensi", "potensial"],
+    "holistik":            ["menyeluruh", "lengkap", "terpadu"],
+    "pragmatis":           ["praktis", "realistis", "fungsional"],
 }
 
 def _get_synonym(word_lower: str) -> str:
@@ -256,6 +283,56 @@ def _get_synonym(word_lower: str) -> str:
         return _random.choice(choices)
     return word_lower
 
+
+# --- HUMANIZATION LAYER: variasikan pembuka kalimat agar tidak ada "AI fingerprint" ---
+# Pola pembuka yang terlalu sering dipakai AI → diganti dengan variasi acak
+SENTENCE_OPENER_MULTI = {
+    # "Sebagai..." patterns
+    r'^(Sebagai salah satu)':   ["Salah satu", "Merupakan salah satu", "Sebagai"],
+    r'^(Sebagai sebuah)':       ["Merupakan sebuah", "Sebagai sebuah", "Berupa sebuah"],
+    r'^(Sebagai bagian dari)':  ["Bagian dari", "Dalam rangka", "Sebagai bagian dari"],
+
+    # "Melalui..." patterns
+    r'^(Melalui penerapan)':    ["Dengan menerapkan", "Penerapan", "Lewat penerapan"],
+    r'^(Melalui penggunaan)':   ["Dengan menggunakan", "Penggunaan", "Lewat penggunaan"],
+    r'^(Melalui proses)':       ["Dalam proses", "Dengan melalui proses", "Lewat proses"],
+    r'^(Melalui pendekatan)':   ["Dengan pendekatan", "Pendekatan", "Lewat pendekatan"],
+
+    # "Dalam konteks..." patterns
+    r'^(Dalam konteks ini)':    ["Terkait hal ini", "Berkaitan dengan ini", "Dalam hal ini"],
+    r'^(Dalam konteks)':        ["Terkait", "Berkaitan dengan", "Dalam hal"],
+
+    # "Secara..." patterns
+    r'^(Secara konseptual)':    ["Secara teoritis", "Dari sisi konsep", "Pada tataran konsep"],
+    r'^(Secara keseluruhan)':   ["Secara umum", "Pada dasarnya", "Bila dilihat secara utuh"],
+    r'^(Secara khusus)':        ["Lebih spesifik", "Terkhusus", "Khususnya"],
+    r'^(Secara umum)':          ["Pada umumnya", "Umumnya", "Secara garis besar"],
+    r'^(Secara signifikan)':    ["Secara nyata", "Cukup signifikan", "Dengan jelas"],
+
+    # "Hal ini..." patterns
+    r'^(Hal ini menunjukkan)':  ["Ini menunjukkan", "Kondisi ini memperlihatkan", "Fakta ini mengindikasikan"],
+    r'^(Hal ini disebabkan)':   ["Kondisi ini disebabkan", "Ini terjadi karena", "Penyebabnya adalah"],
+    r'^(Hal tersebut)':         ["Kondisi tersebut", "Situasi ini", "Keadaan ini"],
+
+    # "Dengan demikian..." patterns
+    r'^(Dengan demikian)':      ["Oleh karena itu", "Maka dari itu", "Karenanya"],
+    r'^(Dengan kata lain)':     ["Dengan demikian", "Artinya", "Maksudnya"],
+}
+
+import re as _re_opener
+
+def _humanize_opener(text: str) -> str:
+    """Replace repetitive AI sentence openers with a random alternative."""
+    for pattern, alternatives in SENTENCE_OPENER_MULTI.items():
+        m = _re_opener.match(pattern, text)
+        if m:
+            chosen = _random.choice(alternatives)
+            rest = text[m.end():]
+            # Capitalize first letter of rest if needed
+            if rest and rest[0].islower():
+                rest = rest[0].upper() + rest[1:]
+            return chosen + " " + rest
+    return text
 
 
 # --- Frasa yang SAMA SEKALI tidak boleh disentuh ---
@@ -505,6 +582,9 @@ def offline_paraphrase(text):
         result = re.sub(r'\s+\)', ')', result)
         # Hapus spasi ganda
         result = re.sub(r'\s{2,}', ' ', result).strip()
+
+        # --- HUMANIZATION LAYER: Acak pola pembuka kalimat ---
+        result = _humanize_opener(result)
 
         processed_sentences.append(result)
 

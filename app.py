@@ -6,6 +6,98 @@ from flask import Flask, request, render_template_string, send_file, redirect, u
 import google.generativeai as genai
 from pypdf import PdfReader, PdfWriter
 
+INDONESIAN_SYNONYMS = {
+    "menggunakan": "memanfaatkan",
+    "memanfaatkan": "menggunakan",
+    "menunjukkan": "mengindikasikan",
+    "mengindikasikan": "menunjukkan",
+    "penelitian": "studi",
+    "studi": "penelitian",
+    "metode": "pendekatan",
+    "pendekatan": "metode",
+    "adalah": "merupakan",
+    "merupakan": "ialah",
+    "berbasis": "berlandaskan",
+    "informasi": "data",
+    "sistem": "mekanisme",
+    "untuk": "guna",
+    "sangat": "amat",
+    "dapat": "bisa",
+    "membuat": "menghasilkan",
+    "hasil": "keluaran",
+    "analisis": "pengkajian",
+    "implementasi": "penerapan",
+    "aplikasi": "perangkat lunak",
+    "proses": "tahapan",
+    "tujuan": "sasaran",
+    "maka": "oleh karena itu",
+    "sehingga": "akibatnya",
+    "namun": "akan tetapi",
+    "tetapi": "namun",
+    "dengan": "melalui",
+    "pada": "di",
+    "tentang": "mengenai",
+    "secara": "melalui",
+    "efisien": "efektif",
+    "cepat": "pesat",
+    "mudah": "gampang",
+    "membantu": "mempermudah",
+    "melakukan": "menjalankan",
+    "pengembangan": "perancangan",
+    "perancangan": "pengembangan",
+    "merancang": "mendesain",
+    "mendesain": "merancang",
+    "menyatakan": "mengungkapkan",
+    "mengungkapkan": "menyatakan",
+    "menjelaskan": "menerangkan",
+    "menerangkan": "menjelaskan",
+    "diperlukan": "dibutuhkan",
+    "dibutuhkan": "diperlukan",
+    "berdasarkan": "berlandaskan",
+    "berlandaskan": "berdasarkan",
+    "berbagai": "macam-macam",
+    "serta": "dan juga",
+    "salah satu": "suatu bagian",
+    "penting": "krusial",
+    "krusial": "penting",
+    "teknologi": "sistem teknik",
+    "perkembangan": "kemajuan",
+    "kemajuan": "perkembangan",
+    "meningkatkan": "memaksimalkan",
+    "memaksimalkan": "meningkatkan",
+    "efektif": "berdaya guna",
+    "sebagai": "selaku",
+    "karena": "disebabkan oleh",
+    "oleh": "lewat"
+}
+
+def offline_paraphrase(text):
+    words = re.findall(r'\b\w+\b|[^\w\s]', text)
+    new_words = []
+    for token in words:
+        if token.isalnum():
+            token_lower = token.lower()
+            if token_lower in INDONESIAN_SYNONYMS:
+                syn = INDONESIAN_SYNONYMS[token_lower]
+                if token.istitle():
+                    syn = syn.capitalize()
+                elif token.isupper():
+                    syn = syn.upper()
+                new_words.append(syn)
+            else:
+                new_words.append(token)
+        else:
+            new_words.append(token)
+            
+    result = ""
+    for i, token in enumerate(new_words):
+        if i > 0 and token.isalnum() and new_words[i-1].isalnum():
+            result += " "
+        elif i > 0 and token.isalnum() and new_words[i-1] not in ['"', "'", '(', '[', '{']:
+            result += " "
+        result += token
+    return result
+
 app = Flask(__name__)
 if os.environ.get('VERCEL'):
     UPLOAD_FOLDER = '/tmp'
@@ -533,9 +625,18 @@ HTML_TEMPLATE = """
             <div id="ai" class="tab-content">
                 <form action="/process_ai" method="POST" enctype="multipart/form-data">
                     <div class="form-group">
-                        <label>Gemini API Key</label>
+                        <label>Paraphrase Engine</label>
+                        <select name="engine" id="engine_select" onchange="toggleAPIKeyField()" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; font-size: 0.9rem; background: #fbfbfa; color: var(--text-color); margin-bottom: 15px;">
+                            <option value="gemini">Gemini AI (Requires Google Key)</option>
+                            <option value="openrouter">OpenRouter AI (Free & Credits Key compatible)</option>
+                            <option value="local">Local Paraphraser (100% Free & Offline - No Key Required)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="api_key_group">
+                        <label>Gemini / OpenRouter API Key</label>
                         <div class="api-input-container">
-                            <input type="text" id="api_key_input" name="api_key" placeholder="Enter your Gemini API Key here" required value="{{ api_key_val }}">
+                            <input type="text" id="api_key_input" name="api_key" placeholder="Enter your API Key here" required value="{{ api_key_val }}">
                             <button type="button" class="btn-check-api" onclick="checkAPIKey()">Check API</button>
                         </div>
                         <div id="api_status" class="api-status-badge"></div>
@@ -619,9 +720,18 @@ HTML_TEMPLATE = """
             <div id="pdf_solver" class="tab-content">
                 <form action="/process_pdf_solver" method="POST" enctype="multipart/form-data">
                     <div class="form-group">
-                        <label>Gemini API Key</label>
+                        <label>Paraphrase Engine</label>
+                        <select name="engine" id="engine_select_solver" onchange="toggleAPIKeyFieldSolver()" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-family: inherit; font-size: 0.9rem; background: #fbfbfa; color: var(--text-color); margin-bottom: 15px;">
+                            <option value="gemini">Gemini AI (Requires Google Key)</option>
+                            <option value="openrouter">OpenRouter AI (Free & Credits Key compatible)</option>
+                            <option value="local">Local Paraphraser (100% Free & Offline - No Key Required)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" id="api_key_group_solver">
+                        <label>Gemini / OpenRouter API Key</label>
                         <div class="api-input-container">
-                            <input type="text" id="api_key_input_solver" name="api_key" placeholder="Enter your Gemini API Key here" required value="{{ api_key_val }}">
+                            <input type="text" id="api_key_input_solver" name="api_key" placeholder="Enter your API Key here" required value="{{ api_key_val }}">
                             <button type="button" class="btn-check-api" onclick="checkAPIKeySolver()">Check API</button>
                         </div>
                         <div id="api_status_solver" class="api-status-badge"></div>
@@ -670,6 +780,32 @@ HTML_TEMPLATE = """
             window.location.hash = tabId;
         }
 
+        function toggleAPIKeyField() {
+            const engine = document.getElementById('engine_select').value;
+            const apiKeyContainer = document.getElementById('api_key_group');
+            const apiKeyInput = document.getElementById('api_key_input');
+            if (engine === 'local') {
+                apiKeyContainer.style.display = 'none';
+                apiKeyInput.removeAttribute('required');
+            } else {
+                apiKeyContainer.style.display = 'block';
+                apiKeyInput.setAttribute('required', 'required');
+            }
+        }
+
+        function toggleAPIKeyFieldSolver() {
+            const engine = document.getElementById('engine_select_solver').value;
+            const apiKeyContainer = document.getElementById('api_key_group_solver');
+            const apiKeyInput = document.getElementById('api_key_input_solver');
+            if (engine === 'local') {
+                apiKeyContainer.style.display = 'none';
+                apiKeyInput.removeAttribute('required');
+            } else {
+                apiKeyContainer.style.display = 'block';
+                apiKeyInput.setAttribute('required', 'required');
+            }
+        }
+
         // Initialize active tab based on Hash or parameter
         window.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -681,6 +817,8 @@ HTML_TEMPLATE = """
             } else if (hash) {
                 switchTab(hash);
             }
+            toggleAPIKeyField();
+            toggleAPIKeyFieldSolver();
         });
 
         function checkAPIKey() {
@@ -903,8 +1041,9 @@ def check_api():
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": "google/gemini-2.5-flash",
-                "messages": [{"role": "user", "content": "Tes koneksi. Balas dengan kata OK saja."}]
+                "model": "google/gemini-2.0-flash-lite:free",
+                "messages": [{"role": "user", "content": "Tes"}],
+                "max_tokens": 10
             }
             res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
             if res.status_code == 200:
@@ -983,9 +1122,11 @@ def process_manual():
 
 @app.route('/process_ai', methods=['POST'])
 def process_ai():
+    engine = request.form.get('engine', 'gemini')
     api_key = request.form.get('api_key')
-    if not api_key:
-        return redirect(url_for('index', error_msg="Gemini API Key is required.", active_tab="ai"))
+    
+    if engine != 'local' and not api_key:
+        return redirect(url_for('index', error_msg="API Key is required for AI modes.", active_tab="ai"))
         
     if 'original_doc' not in request.files:
         return redirect(url_for('index', error_msg="Please select a document.", api_key_val=api_key, active_tab="ai"))
@@ -1001,8 +1142,6 @@ def process_ai():
     orig_file.save(orig_path)
     
     try:
-        genai.configure(api_key=api_key)
-        
         try:
             doc = Document(orig_path)
         except Exception as docx_err:
@@ -1014,23 +1153,24 @@ def process_ai():
             original_text = p.text.strip()
             if len(original_text) > 20 and not original_text.startswith("BAB ") and not original_text.startswith("DAFTAR PUSTAKA") and not original_text.isupper():
                 try:
-                    time.sleep(1.0) # Lower delay
-                    
                     para_text = None
                     last_err = None
                     
-                    if api_key.startswith('sk-or-'):
+                    if engine == 'local':
+                        para_text = offline_paraphrase(original_text)
+                    elif engine == 'openrouter':
                         import requests
                         headers = {
                             "Authorization": f"Bearer {api_key}",
                             "Content-Type": "application/json"
                         }
                         payload = {
-                            "model": "google/gemini-2.5-flash",
+                            "model": "google/gemini-2.0-flash-lite:free",
                             "messages": [
                                 {"role": "system", "content": PARAPHRASE_SYSTEM_PROMPT},
                                 {"role": "user", "content": original_text}
-                            ]
+                            ],
+                            "max_tokens": 1000
                         }
                         res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
                         if res.status_code == 200:
@@ -1038,6 +1178,7 @@ def process_ai():
                         else:
                             last_err = res.text
                     else:
+                        genai.configure(api_key=api_key)
                         models_to_try = [
                             'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
                             'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
@@ -1225,9 +1366,11 @@ def process_word2pdf():
 
 @app.route('/process_pdf_solver', methods=['POST'])
 def process_pdf_solver():
+    engine = request.form.get('engine', 'gemini')
     api_key = request.form.get('api_key')
-    if not api_key:
-        return redirect(url_for('index', error_msg="Gemini API Key is required.", active_tab="pdf_solver"))
+    
+    if engine != 'local' and not api_key:
+        return redirect(url_for('index', error_msg="API Key is required for AI modes.", active_tab="pdf_solver"))
         
     if 'pdf_file' not in request.files:
         return redirect(url_for('index', error_msg="Please select a PDF file.", api_key_val=api_key, active_tab="pdf_solver"))
@@ -1253,34 +1396,34 @@ def process_pdf_solver():
         os.remove(pdf_path)
         pdf_path = sanitized_path
     except Exception as clean_err:
-        print(f"Sanitization failed, using raw upload: {clean_err}")
+        print(f"Sanitization failed: {clean_err}")
         if os.path.exists(sanitized_path):
             try: os.remove(sanitized_path)
             except: pass
             
     try:
-        genai.configure(api_key=api_key)
+        response_text = None
+        last_err = None
         
-        uploaded_file = genai.upload_file(path=pdf_path, mime_type='application/pdf')
-        
-        import time
-        for _ in range(30):
-            if uploaded_file.state.name == "ACTIVE":
-                break
-            elif uploaded_file.state.name == "FAILED":
-                raise ValueError("Gagal memproses file PDF di server Google API.")
-            time.sleep(2)
-            uploaded_file = genai.get_file(uploaded_file.name)
-            
         prompt = (
             "Berikut adalah dokumen PDF Turnitin. Silakan analisis HANYA pada bagian teks yang memiliki warna highlight/sorotan plagiasi. "
             "Abaikan teks yang bersih (tanpa warna). Hasilkan output berupa daftar teks asli dan hasil parafrasenya sesuai aturan format Markdown yang telah ditetapkan."
         )
         
-        response_text = None
-        last_err = None
-        
-        if api_key.startswith('sk-or-'):
+        if engine == 'local':
+            reader = PdfReader(pdf_path)
+            full_text = ""
+            for idx, page in enumerate(reader.pages):
+                text = page.extract_text() or ""
+                if text.strip():
+                    full_text += f"\n### Halaman {idx+1}\n"
+                    for line in text.split('\n'):
+                        if line.strip():
+                            para = offline_paraphrase(line.strip())
+                            full_text += f"* **Teks Asli:** \"{line.strip()}\"\n* **Hasil Parafrase:** \"**{para}**\"\n\n"
+            response_text = full_text
+            
+        elif engine == 'openrouter':
             import requests
             import base64
             with open(pdf_path, "rb") as f:
@@ -1291,7 +1434,7 @@ def process_pdf_solver():
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": "google/gemini-2.5-flash",
+                "model": "google/gemini-2.0-flash-lite:free",
                 "messages": [
                     {"role": "system", "content": SYSTEM_INSTRUCTION_PDF_SOLVER},
                     {
@@ -1306,7 +1449,8 @@ def process_pdf_solver():
                             }
                         ]
                     }
-                ]
+                ],
+                "max_tokens": 3000
             }
             res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
             if res.status_code == 200:
@@ -1314,6 +1458,18 @@ def process_pdf_solver():
             else:
                 last_err = res.text
         else:
+            genai.configure(api_key=api_key)
+            uploaded_file = genai.upload_file(path=pdf_path, mime_type='application/pdf')
+            
+            import time
+            for _ in range(30):
+                if uploaded_file.state.name == "ACTIVE":
+                    break
+                elif uploaded_file.state.name == "FAILED":
+                    raise ValueError("Gagal memproses file PDF di server Google API.")
+                time.sleep(2)
+                uploaded_file = genai.get_file(uploaded_file.name)
+                
             models_to_try = [
                 'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
                 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
@@ -1331,15 +1487,14 @@ def process_pdf_solver():
                 except Exception as model_err:
                     print(f"Failed using model {model_name}: {model_err}")
                     last_err = model_err
-                
-        try:
-            if not api_key.startswith('sk-or-'):
+                    
+            try:
                 genai.delete_file(uploaded_file.name)
-        except:
-            pass
+            except:
+                pass
             
         if not response_text:
-            raise ValueError(f"Google Gemini API returned empty response or failed across all models. Last error: {last_err}")
+            raise ValueError(f"Paraphrase engine returned empty response or failed. Last error: {last_err}")
             
         out_filename = "turnitin_slayer_result.docx"
         out_path = os.path.join(app.config['UPLOAD_FOLDER'], out_filename)

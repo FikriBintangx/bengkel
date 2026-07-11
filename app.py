@@ -7,207 +7,259 @@ import google.generativeai as genai
 from pypdf import PdfReader, PdfWriter
 
 INDONESIAN_SYNONYMS = {
+    # Verba
     "menggunakan": "memakai",
+    "memakai": "menggunakan",
     "menunjukkan": "memperlihatkan",
-    "penelitian": "studi",
-    "studi": "penelitian",
-    "metode": "pendekatan",
-    "pendekatan": "metode",
-    "adalah": "merupakan",
-    "merupakan": "adalah",
-    "berbasis": "berlandaskan",
-    "sangat": "amat",
-    "dapat": "bisa",
-    "membuat": "menyusun",
-    "hasil": "temuan",
-    "analisis": "kajian",
-    "implementasi": "penerapan",
-    "aplikasi": "perangkat lunak",
-    "proses": "tahapan",
-    "tujuan": "sasaran",
-    "namun": "akan tetapi",
-    "tetapi": "namun",
-    "tentang": "mengenai",
-    "cepat": "pesat",
-    "mudah": "gampang",
+    "memperlihatkan": "menunjukkan",
     "membantu": "mempermudah",
+    "mempermudah": "membantu",
     "melakukan": "menjalankan",
-    "pengembangan": "perancangan",
-    "perancangan": "pengembangan",
-    "merancang": "mendesain",
-    "mendesain": "merancang",
+    "menjalankan": "melakukan",
     "menyatakan": "mengungkapkan",
     "mengungkapkan": "menyatakan",
     "menjelaskan": "menerangkan",
     "menerangkan": "menjelaskan",
     "diperlukan": "dibutuhkan",
     "dibutuhkan": "diperlukan",
-    "berdasarkan": "berlandaskan",
-    "berlandaskan": "berdasarkan",
-    "penting": "krusial",
-    "krusial": "penting",
-    "perkembangan": "kemajuan",
-    "kemajuan": "perkembangan",
     "meningkatkan": "memaksimalkan",
     "memaksimalkan": "meningkatkan",
-    "efektif": "tepat sasaran"
+    "merancang": "mendesain",
+    "mendesain": "merancang",
+    "membuat": "menyusun",
+    "menyusun": "membuat",
+    "mengatasi": "menyelesaikan",
+    "menyelesaikan": "mengatasi",
+    "ditemukan": "didapatkan",
+    "didapatkan": "ditemukan",
+    "diperoleh": "didapat",
+    "didapat": "diperoleh",
+    "dikembangkan": "dibangun",
+    "dibangun": "dikembangkan",
+    "digunakan": "dimanfaatkan",
+    "dimanfaatkan": "digunakan",
+    "mengidentifikasi": "mengenali",
+    "mengenali": "mengidentifikasi",
+    "menganalisis": "mengkaji",
+    "mengkaji": "menganalisis",
+    "membahas": "mengulas",
+    "mengulas": "membahas",
+    # Nomina & Adjektiva
+    "metode": "pendekatan",
+    "pendekatan": "metode",
+    "adalah": "merupakan",
+    "merupakan": "ialah",
+    "ialah": "adalah",
+    "berbasis": "berlandaskan",
+    "berlandaskan": "bertumpu pada",
+    "sangat": "amat",
+    "amat": "sangat",
+    "dapat": "bisa",
+    "bisa": "mampu",
+    "mampu": "dapat",
+    "analisis": "kajian",
+    "kajian": "telaah",
+    "telaah": "analisis",
+    "implementasi": "penerapan",
+    "penerapan": "implementasi",
+    "proses": "tahapan",
+    "tahapan": "langkah",
+    "tujuan": "sasaran",
+    "sasaran": "tujuan",
+    "namun": "akan tetapi",
+    "tetapi": "namun",
+    "tentang": "mengenai",
+    "mengenai": "terkait",
+    "terkait": "tentang",
+    "cepat": "pesat",
+    "pesat": "cepat",
+    "mudah": "efisien",
+    "pengembangan": "perancangan",
+    "perancangan": "pengembangan",
+    "penting": "krusial",
+    "krusial": "vital",
+    "vital": "penting",
+    "perkembangan": "kemajuan",
+    "kemajuan": "perkembangan",
+    "efektif": "optimal",
+    "optimal": "efektif",
+    "berdasarkan": "berlandaskan",
+    "sesuai": "berdasar pada",
+    "sehingga": "dengan demikian",
+    "oleh karena itu": "oleh sebab itu",
+    "oleh sebab itu": "oleh karena itu",
+    "untuk": "guna",
+    "guna": "demi",
+    "demi": "untuk",
+    "dengan": "melalui",
+    "melalui": "lewat",
+    "lewat": "dengan",
+    "pada": "di",
+    "dalam": "pada",
+    "akurat": "presisi",
+    "presisi": "tepat",
+    "tepat": "akurat",
+    "otomatis": "secara otomatis",
+    "mengurangi": "meminimalisir",
+    "meminimalisir": "mengurangi",
+    "kesalahan": "kekeliruan",
+    "kekeliruan": "kesalahan",
+    "data": "informasi",
+    "informasi": "data",
+    "pengguna": "pemakai",
+    "pemakai": "pengguna",
+    "kinerja": "performa",
+    "performa": "kinerja",
+    "laporan": "rekap",
+    "rekap": "laporan",
+    "masalah": "permasalahan",
+    "permasalahan": "kendala",
+    "kendala": "masalah",
 }
 
+# --- Frasa yang SAMA SEKALI tidak boleh disentuh ---
 EXCLUDE_PHRASES = [
-    "sistem informasi akuntansi",
-    "sistem informasi",
-    "tarif efektif rata-rata",
-    "tarif efektif",
-    "daftarpustaka",
-    "daftar pustaka",
-    "use case",
-    "class diagram",
-    "waterfall",
-    "database",
-    "data base",
-    "pph 21",
-    "pajak penghasilan",
-    "sistem penggajian",
-    "sistem teknik",
-    "ter",
-    "uml",
-    "php",
-    "mysql",
-    "haar cascade",
-    "lbph"
+    # Metadata akademik - WAJIB DILINDUNGI
+    "program studi", "jenjang studi", "fakultas", "universitas", "jurusan",
+    "nim", "nip", "dosen pembimbing", "dosen penguji", "ketua sidang",
+    # Frasa yang sering salah diparafrase
+    "sistem informasi akuntansi", "sistem informasi manajemen", "sistem informasi",
+    "sistem penggajian", "sistem pembayaran", "sistem pendukung keputusan",
+    "decision support system", "dss",
+    "tarif efektif rata-rata", "tarif efektif",
+    "daftar pustaka", "daftarpustaka",
+    # Teknologi & Tools - jangan diubah
+    "use case", "class diagram", "entity relationship diagram", "erd",
+    "waterfall", "agile", "scrum", "kanban",
+    "database", "data base", "data warehouse",
+    "php", "mysql", "postgresql", "mongodb", "sqlite",
+    "react", "vue", "angular", "laravel", "codeigniter", "django", "flask",
+    "inertia.js", "node.js", "javascript", "python", "java", "kotlin",
+    "haar cascade", "lbph", "uml", "api", "rest api", "xml", "json", "html", "css",
+    # Istilah statistik/akademik
+    "pph 21", "pajak penghasilan", "pajak pertambahan nilai", "ppn",
+    "skala likert", "uji validitas", "uji reliabilitas", "uji normalitas",
+    "regresi linier", "regresi berganda", "korelasi pearson", "anova",
+    "mean absolute error", "root mean square error", "mae", "rmse", "mse",
+    "f-measure", "precision", "recall", "accuracy",
 ]
 
-ACTIVE_TO_PASSIVE_VERBS = {
-    "menerapkan": "diterapkan",
-    "menggunakan": "digunakan",
-    "memakai": "dipakai",
-    "merancang": "dirancang",
-    "mendesain": "didesain",
-    "membuat": "dibuat",
-    "menyusun": "disusun",
-    "menjelaskan": "dijelaskan",
-    "menerangkan": "diterangkan",
-    "menemukan": "ditemukan",
-    "memperoleh": "diperoleh",
-    "menghasilkan": "dihasilkan",
-    "melakukan": "dilakukan",
-    "menjalankan": "dijalankan",
-    "mengembangkan": "dikembangkan",
-    "meningkatkan": "ditingkatkan",
-    "memaksimalkan": "dimaksimalkan",
-    "menyatakan": "dinyatakan",
-    "mengungkapkan": "diungkapkan",
-    "mengemukakan": "dikemukakan",
-    "menganalisis": "dianalisis",
-    "mengkaji": "dikaji",
-    "mempelajari": "dipelajari",
-    "membahas": "dibahas",
-    "menyelesaikan": "diselesaikan",
-    "mengatasi": "diatasi",
-    "membantu": "dibantu",
-    "mempermudah": "dipermudah",
-    "mengidentifikasi": "diidentifikasi",
-    "menentukan": "ditentukan",
-    "mengolah": "diolah",
-    "memproses": "diproses"
-}
+# Kata sambung jamak yang sering rusak saat replace
+CONJUNCTIONS_PROTECT = [
+    "oleh karena itu", "akan tetapi", "meskipun demikian", "dengan demikian",
+    "sehubungan dengan", "berkenaan dengan", "berkaitan dengan",
+    "selain itu", "di samping itu", "lebih lanjut", "lebih jauh",
+]
 
-def shift_sentence_syntax(sentence):
-    if not sentence or len(sentence.strip()) < 10:
-        return sentence
-    words = sentence.split()
-    for i, word in enumerate(words):
-        word_clean = word.strip(",.!?\"()").lower()
-        if word_clean in ACTIVE_TO_PASSIVE_VERBS:
-            passive_verb = ACTIVE_TO_PASSIVE_VERBS[word_clean]
-            subject_words = words[:i]
-            object_words = words[i+1:]
-            
-            if len(subject_words) > 0 and len(object_words) > 0:
-                subject = " ".join(subject_words)
-                obj_text = " ".join(object_words)
-                
-                end_punc = ""
-                if subject[-1] in ['.', ',', '!', '?']:
-                    end_punc = subject[-1]
-                    subject = subject[:-1]
-                
-                obj_punc = ""
-                if obj_text[-1] in ['.', ',', '!', '?']:
-                    obj_punc = obj_text[-1]
-                    obj_text = obj_text[:-1]
-                    
-                if obj_text:
-                    obj_text = obj_text[0].upper() + obj_text[1:]
-                
-                if subject:
-                    first_word = subject.split()[0]
-                    if not first_word.isupper() and len(first_word) > 1:
-                        subject = subject[0].lower() + subject[1:]
-                
-                return f"{obj_text} {passive_verb} oleh {subject}{obj_punc or end_punc}"
-    return sentence
+def _is_protected_line(text: str) -> bool:
+    """Returns True if this line should NOT be paraphrased at all."""
+    t = text.strip().lower()
+    # Gambar, Tabel, Bagan, Lampiran
+    if re.match(r'^(gambar|tabel|bagan|lampiran|grafik|diagram|figure|table)\s+[\dIVXivx]+', t, re.IGNORECASE):
+        return True
+    # Semua huruf kapital = judul bab / cover
+    if text.strip().isupper() and len(text.strip()) > 3:
+        return True
+    # Judul dokumen (baris dimulai dengan kata kunci metadata kampus)
+    meta_kw = ["program studi", "jurusan", "fakultas", "universitas", "nim", "nip",
+               "dosen pembimbing", "dosen penguji", "disusun oleh", "disusun:",
+               "diajukan oleh", "oleh :", "oleh:", "tahun akademik"]
+    if any(t.startswith(kw) for kw in meta_kw):
+        return True
+    # Baris yang hanya berisi angka / kode
+    if re.match(r'^[\d\s\-\./,]+$', text.strip()):
+        return True
+    # Sitasi inline (Author, YYYY) atau [n]
+    if re.match(r'^\([A-Z][^)]+,\s*\d{4}\)$', text.strip()):
+        return True
+    return False
+
 
 def offline_paraphrase(text):
     if not text:
         return text
-        
+
+    # Jika baris ini dilindungi, kembalikan as-is
+    if _is_protected_line(text):
+        return text
+
     sentences = re.split(r'(?<=[.!?])\s+', text)
     processed_sentences = []
-    
+
     for sentence in sentences:
-        shifted = shift_sentence_syntax(sentence)
-        
+        if not sentence.strip():
+            continue
+
+        # Lindungi konjungsi jamak dulu
+        conj_holders = {}
+        temp = sentence
+        for ci, conj in enumerate(sorted(CONJUNCTIONS_PROTECT, key=len, reverse=True)):
+            pattern = re.compile(re.escape(conj), re.IGNORECASE)
+            for m in pattern.finditer(temp):
+                key = f"__CONJ_{ci}_{len(conj_holders)}__"
+                conj_holders[key] = m.group(0)
+            temp = pattern.sub(lambda m, k=f"__CONJ_{ci}_{len(conj_holders)-1}__": k if m.group(0) in conj_holders.values() else m.group(0), temp)
+        # Re-do proteksi konjungsi dengan cara yang lebih bersih
+        conj_holders2 = {}
+        temp2 = sentence
+        for ci, conj in enumerate(sorted(CONJUNCTIONS_PROTECT, key=len, reverse=True)):
+            key = f"__CONJ_{ci}__"
+            new_t = re.sub(re.escape(conj), key, temp2, flags=re.IGNORECASE)
+            if new_t != temp2:
+                conj_holders2[key] = conj
+                temp2 = new_t
+
+        # Lindungi exclude phrases
         placeholders = {}
-        temp_text = shifted
         sorted_phrases = sorted(EXCLUDE_PHRASES, key=len, reverse=True)
-        
         for idx, phrase in enumerate(sorted_phrases):
             pattern = re.compile(r'\b' + re.escape(phrase) + r'\b', re.IGNORECASE)
-            matches = pattern.findall(temp_text)
-            for match in matches:
-                key = f"__EXCLUDE_PLACEHOLDER_{idx}_{len(placeholders)}__"
-                placeholders[key] = match
-                temp_text = temp_text.replace(match, key)
-                
-        words = re.findall(r'\b\w+(?:-\w+)*\b|[^\w\s]', temp_text)
-        new_words = []
-        
-        for token in words:
-            if token.startswith("__EXCLUDE_PLACEHOLDER_") and token.endswith("__"):
-                new_words.append(token)
-                continue
-                
-            if token.isalnum():
-                token_lower = token.lower()
-                if token_lower in INDONESIAN_SYNONYMS:
-                    syn = INDONESIAN_SYNONYMS[token_lower]
-                    if token.istitle():
-                        syn = syn.capitalize()
-                    elif token.isupper():
-                        syn = syn.upper()
-                    new_words.append(syn)
+            def replacer(m, k=f"__EX_{idx}_{id(phrase)}__"):
+                placeholders[k] = m.group(0)
+                return k
+            temp2 = pattern.sub(replacer, temp2)
+
+        # Ganti sinonim kata per kata (HANYA kata lengkap, case-aware)
+        def replace_word(m):
+            word = m.group(0)
+            lower = word.lower()
+            if lower in INDONESIAN_SYNONYMS:
+                syn = INDONESIAN_SYNONYMS[lower]
+                if word.istitle():
+                    # Capitalize hanya huruf pertama kata pertama dari sinonim
+                    return syn[0].upper() + syn[1:]
+                elif word.isupper():
+                    return syn.upper()
                 else:
-                    new_words.append(token)
-            else:
-                new_words.append(token)
-                
-        result = ""
-        for i, token in enumerate(new_words):
-            if i > 0:
-                prev = new_words[i-1]
-                if token.isalnum() or token.startswith("__EXCLUDE_"):
-                    if prev.isalnum() or prev.endswith("__") or prev not in ['"', "'", '(', '[', '{']:
-                        result += " "
-            result += token
-            
-        for key, original in placeholders.items():
-            result = result.replace(key, original)
-            
-        result = re.sub(r'\s+', ' ', result).strip()
+                    return syn
+            return word
+
+        result = re.sub(r'\b\w+(?:-\w+)*\b', replace_word, temp2)
+
+        # Kembalikan konjungsi
+        for key, val in conj_holders2.items():
+            result = result.replace(key, val)
+
+        # Kembalikan exclude phrases
+        for key, val in placeholders.items():
+            result = result.replace(key, val)
+
+        # --- Post-processing perbaikan spasi & duplikasi ---
+        # Hapus duplikasi kata sambung, cth: "oleh oleh karena itu"
+        result = re.sub(r'\b(\w+)\s+\1\b', r'\1', result)
+        # Perbaiki spasi di sekitar tanda baca
+        result = re.sub(r'\s+([,.:;!?])', r'\1', result)
+        result = re.sub(r'([,.:;])\s*([^\s])', r'\1 \2', result)
+        # Perbaiki spasi antara kata dan tanda kurung
+        result = re.sub(r'\(\s+', '(', result)
+        result = re.sub(r'\s+\)', ')', result)
+        # Hapus spasi ganda
+        result = re.sub(r'\s{2,}', ' ', result).strip()
+
         processed_sentences.append(result)
-        
+
     return " ".join(processed_sentences)
+
 
 app = Flask(__name__)
 if os.environ.get('VERCEL'):

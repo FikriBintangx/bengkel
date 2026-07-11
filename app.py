@@ -2111,66 +2111,114 @@ def process_ai():
             raise Exception(f"File dokumen tidak bisa dibuka atau rusak: {docx_err}")
 
         replaced_count = 0
-        
+
+        # ---- Deteksi batas BAB I - BAB V ----
+        import re as _re2
+        BAB_START_PATTERN = _re2.compile(
+            r'^(BAB\s+[IiVv1-5]+|BAB\s+SATU|BAB\s+DUA|BAB\s+TIGA|BAB\s+EMPAT|BAB\s+LIMA'
+            r'|CHAPTER\s+[IiVv1-5]+)',
+            _re2.IGNORECASE
+        )
+        BAB_END_PATTERN = _re2.compile(
+            r'^(DAFTAR\s+PUSTAKA|DAFTAR\s+ACUAN|REFERENSI|BIBLIOGRAPHY'
+            r'|LAMPIRAN|APPENDIX|PENUTUP\s+DOKUMEN)',
+            _re2.IGNORECASE
+        )
+        ROMAN_TO_INT = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5,
+                        '1': 1, '2': 2, '3': 3, '4': 4, '5': 5}
+
+        def _bab_number(txt):
+            """Extract integer 1-5 from 'BAB X' text, return 0 if not parseable."""
+            m = _re2.search(r'(BAB|CHAPTER)\s+([IVX1-5]+)', txt, _re2.IGNORECASE)
+            if m:
+                token = m.group(2).upper()
+                return ROMAN_TO_INT.get(token, 0)
+            return 0
+
+        inside_bab15 = False   # True kalau sedang di dalam BAB I–V
+        reached_end   = False  # True kalau sudah lewat BAB V
+
         for p in doc.paragraphs:
             original_text = p.text.strip()
-            if len(original_text) > 20 and not original_text.startswith("BAB ") and not original_text.startswith("DAFTAR PUSTAKA") and not original_text.isupper():
-                try:
-                    para_text = None
-                    last_err = None
-                    
-                    if engine == 'local':
-                        para_text = offline_paraphrase(original_text)
-                    elif engine == 'openrouter':
-                        import requests
-                        headers = {
-                            "Authorization": f"Bearer {api_key}",
-                            "Content-Type": "application/json"
-                        }
-                        payload = {
-                            "model": "openrouter/free",
-                            "messages": [
-                                {"role": "system", "content": PARAPHRASE_SYSTEM_PROMPT},
-                                {"role": "user", "content": original_text}
-                            ],
-                            "max_tokens": 1000
-                        }
-                        res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
-                        if res.status_code == 200:
-                            para_text = res.json()["choices"][0]["message"]["content"].strip()
-                        else:
-                            last_err = res.text
+            txt_upper = original_text.upper()
+
+            # Cek apakah ini heading BAB baru
+            if BAB_START_PATTERN.match(original_text):
+                bab_num = _bab_number(original_text)
+                if 1 <= bab_num <= 5:
+                    inside_bab15 = True
+                    reached_end  = False
+                else:
+                    # BAB VI ke atas → hentikan
+                    inside_bab15 = False
+                    reached_end  = True
+
+            # Cek apakah ini Daftar Pustaka / Lampiran
+            if BAB_END_PATTERN.match(original_text):
+                inside_bab15 = False
+                reached_end  = True
+
+            # Skip kalau baris terlalu pendek atau heading bab
+            if len(original_text) <= 20 or original_text.isupper():
+                continue
+
+            try:
+                para_text = None
+                last_err = None
+
+                if engine == 'local':
+                    para_text = offline_paraphrase(original_text)
+                elif engine == 'openrouter':
+                    import requests
+                    headers = {
+                        "Authorization": f"Bearer {api_key}",
+                        "Content-Type": "application/json"
+                    }
+                    payload = {
+                        "model": "openrouter/free",
+                        "messages": [
+                            {"role": "system", "content": PARAPHRASE_SYSTEM_PROMPT},
+                            {"role": "user", "content": original_text}
+                        ],
+                        "max_tokens": 1000
+                    }
+                    res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+                    if res.status_code == 200:
+                        para_text = res.json()["choices"][0]["message"]["content"].strip()
                     else:
-                        genai.configure(api_key=api_key)
-                        models_to_try = [
-                            'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
-                            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
-                            'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
-                            'gemini-1.5-pro', 'gemini-2.5-pro'
-                        ]
-                        for model_name in models_to_try:
-                            try:
-                                model = genai.GenerativeModel(model_name, system_instruction=PARAPHRASE_SYSTEM_PROMPT)
-                                response = model.generate_content(original_text)
-                                if response and response.text:
-                                    para_text = response.text.strip()
-                                    break
-                            except Exception as m_err:
-                                last_err = m_err
-                            
-                    if not para_text:
-                        print(f"Skipping paragraph due to API failure. Last error: {last_err}")
-                        continue
-                    
-                    if len(p.runs) > 0:
-                        p.runs[0].text = para_text
-                        for r in p.runs[1:]:
-                            r.text = ""
-                    else:
-                        p.text = para_text
-                    replaced_count += 1
-                except Exception as api_err:
-                    print(f"API Error at paragraph: {original_text[:50]}... Error: {api_err}")
+                        last_err = res.text
+                else:
+                    genai.configure(api_key=api_key)
+                    models_to_try = [
+                        'gemini-2.0-flash-latest', 'gemini-2.0-flash',
+                        'gemini-2.5-flash', 'gemini-2.5-flash-lite',
+                        'gemini-1.5-flash', 'gemini-1.5-flash-latest',
+                        'gemini-1.5-pro', 'gemini-2.5-pro'
+                    ]
+                    for model_name in models_to_try:
+                        try:
+                            model = genai.GenerativeModel(model_name, system_instruction=PARAPHRASE_SYSTEM_PROMPT)
+                            response = model.generate_content(original_text)
+                            if response and response.text:
+                                para_text = response.text.strip()
+                                break
+                        except Exception as m_err:
+                            last_err = m_err
+
+                if not para_text:
+                    print(f"Skipping paragraph due to API failure. Last error: {last_err}")
+                    continue
+
+                if len(p.runs) > 0:
+                    p.runs[0].text = para_text
+                    for r in p.runs[1:]:
+                        r.text = ""
+                else:
+                    p.text = para_text
+                replaced_count += 1
+            except Exception as api_err:
+                print(f"API Error at paragraph: {original_text[:50]}... Error: {api_err}")
+
                     
         out_filename = "AI_PARAFRASED_" + orig_name
         out_path = os.path.join(app.config['UPLOAD_FOLDER'], out_filename)

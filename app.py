@@ -600,7 +600,7 @@ else:
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Paraphrase System Prompt for Gemini
-PARAPHRASE_SYSTEM_PROMPT = """Anda adalah asisten akademik profesional yang berspesialisasi dalam menulis ulang karya ilmiah (skripsi/tesis) untuk menurunkan persentase kemiripan (Turnitin) di tingkat universitas.
+PARAPHRASE_SYSTEM_PROMPT = """Anda adalah asisten akademik profesional yang berspesialisasi dalam menulis ulang karya ilmiah (skripsi/tesis) untuk menurunkan persentase kemiripan (Turnitin) di tingkat universitas. Target batas aman kemiripan adalah di bawah 15% (tidak perlu perombakan yang terlalu ekstrem hingga 5%, cukup agar lolos batas wajar 15%).
 
 Tugas Anda adalah memparafrasekan teks bahasa Indonesia yang diberikan oleh pengguna dengan mengikuti instruksi ketat berikut:
 
@@ -739,11 +739,11 @@ Ikuti 5 Aturan Emas ini TANPA PENGECUALIAN:
 1. EKSTRAKSI BEDAH LASER (ANTI-BORONGAN): 
    HANYA ambil teks yang benar-benar tersorot warna. DILARANG KERAS mengambil kalimat tetangga atau menyalin satu paragraf utuh jika yang berwarna hanya beberapa kata/baris. Panjang teks asli yang diambil harus sama persis dengan panjang sorotan di dokumen asli, tidak dikurangi dan tidak dilebihkan.
 
-2. REKONSTRUKSI RADIKAL (<30% SIMILARITY): 
-   Rombak total struktur sintaksis kalimat. 
-   - Ubah kalimat aktif menjadi pasif, atau sebaliknya.
+2. REKONSTRUKSI MODERAT (<15% SIMILARITY): 
+   Rombak struktur sintaksis kalimat secukupnya untuk lolos batas aman 15% tanpa terlihat terlalu dipaksakan atau ekstrem. 
+   - Ubah kalimat aktif menjadi pasif, atau sebaliknya bila natural.
    - Lakukan inversi klausa (pindahkan posisi anak kalimat).
-   - Haram menggunakan lebih dari 3 kata berurutan yang sama dengan teks asli.
+   - Hindari mempertahankan kalimat yang sama persis terlalu panjang.
 
 3. PRESERVASI ENTITAS TEKNIS & BAHASA: 
    Kosakata harus dinaikkan menjadi bahasa akademis formal. NAMUN, Anda DILARANG mengubah istilah teknis, nama algoritma (seperti Haar Cascade, LBPH, dll), bahasa pemrograman, data metrik, angka, dan format sitasi (Nama, Tahun). Wajib memelihara bahasa asli (Bahasa Indonesia) secara mutlak dan dilarang menerjemahkan teks ke bahasa asing.

@@ -896,29 +896,45 @@ def check_api():
         return jsonify({'status': 'error', 'message': 'API Key kosong'})
         
     try:
-        genai.configure(api_key=api_key)
-        models_to_try = [
-            'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
-            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
-            'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
-            'gemini-1.5-pro', 'gemini-2.5-pro'
-        ]
-        response = None
-        last_err = None
-        
-        for model_name in models_to_try:
-            try:
-                model = genai.GenerativeModel(model_name)
-                response = model.generate_content("Tes koneksi. Balas dengan kata OK saja.")
-                if response and response.text:
-                    break
-            except Exception as err:
-                last_err = err
-                
-        if response and response.text:
-            return jsonify({'status': 'success'})
+        if api_key.startswith('sk-or-'):
+            import requests
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "google/gemini-2.5-flash",
+                "messages": [{"role": "user", "content": "Tes koneksi. Balas dengan kata OK saja."}]
+            }
+            res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+            if res.status_code == 200:
+                return jsonify({'status': 'success'})
+            else:
+                return jsonify({'status': 'error', 'message': f'OpenRouter Error: {res.text}'})
         else:
-            return jsonify({'status': 'error', 'message': f'Respons kosong atau error dari API. Terakhir error: {last_err}'})
+            genai.configure(api_key=api_key)
+            models_to_try = [
+                'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
+                'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
+                'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
+                'gemini-1.5-pro', 'gemini-2.5-pro'
+            ]
+            response = None
+            last_err = None
+            
+            for model_name in models_to_try:
+                try:
+                    model = genai.GenerativeModel(model_name)
+                    response = model.generate_content("Tes koneksi. Balas dengan kata OK saja.")
+                    if response and response.text:
+                        break
+                except Exception as err:
+                    last_err = err
+                    
+            if response and response.text:
+                return jsonify({'status': 'success'})
+            else:
+                return jsonify({'status': 'error', 'message': f'Respons kosong atau error dari API. Terakhir error: {last_err}'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
@@ -993,34 +1009,53 @@ def process_ai():
             raise Exception(f"File dokumen tidak bisa dibuka atau rusak: {docx_err}")
 
         replaced_count = 0
-        models_to_try = [
-            'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
-            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
-            'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
-            'gemini-1.5-pro', 'gemini-2.5-pro'
-        ]
         
         for p in doc.paragraphs:
             original_text = p.text.strip()
             if len(original_text) > 20 and not original_text.startswith("BAB ") and not original_text.startswith("DAFTAR PUSTAKA") and not original_text.isupper():
                 try:
-                    time.sleep(4.0) # Delay to avoid 429 Rate Limit
+                    time.sleep(1.0) # Lower delay
                     
-                    # Try model sequence for generation
                     para_text = None
                     last_err = None
-                    for model_name in models_to_try:
-                        try:
-                            model = genai.GenerativeModel(model_name, system_instruction=PARAPHRASE_SYSTEM_PROMPT)
-                            response = model.generate_content(original_text)
-                            if response and response.text:
-                                para_text = response.text.strip()
-                                break
-                        except Exception as m_err:
-                            last_err = m_err
+                    
+                    if api_key.startswith('sk-or-'):
+                        import requests
+                        headers = {
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json"
+                        }
+                        payload = {
+                            "model": "google/gemini-2.5-flash",
+                            "messages": [
+                                {"role": "system", "content": PARAPHRASE_SYSTEM_PROMPT},
+                                {"role": "user", "content": original_text}
+                            ]
+                        }
+                        res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+                        if res.status_code == 200:
+                            para_text = res.json()["choices"][0]["message"]["content"].strip()
+                        else:
+                            last_err = res.text
+                    else:
+                        models_to_try = [
+                            'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
+                            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
+                            'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
+                            'gemini-1.5-pro', 'gemini-2.5-pro'
+                        ]
+                        for model_name in models_to_try:
+                            try:
+                                model = genai.GenerativeModel(model_name, system_instruction=PARAPHRASE_SYSTEM_PROMPT)
+                                response = model.generate_content(original_text)
+                                if response and response.text:
+                                    para_text = response.text.strip()
+                                    break
+                            except Exception as m_err:
+                                last_err = m_err
                             
                     if not para_text:
-                        print(f"Skipping paragraph due to API failure on all models. Last error: {last_err}")
+                        print(f"Skipping paragraph due to API failure. Last error: {last_err}")
                         continue
                     
                     if len(p.runs) > 0:
@@ -1242,38 +1277,75 @@ def process_pdf_solver():
             "Abaikan teks yang bersih (tanpa warna). Hasilkan output berupa daftar teks asli dan hasil parafrasenya sesuai aturan format Markdown yang telah ditetapkan."
         )
         
-        models_to_try = [
-            'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
-            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
-            'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
-            'gemini-1.5-pro', 'gemini-2.5-pro'
-        ]
-        response = None
+        response_text = None
         last_err = None
         
-        for model_name in models_to_try:
-            try:
-                model = genai.GenerativeModel(model_name, system_instruction=SYSTEM_INSTRUCTION_PDF_SOLVER)
-                response = model.generate_content([uploaded_file, prompt])
-                if response and response.text:
-                    break
-            except Exception as model_err:
-                print(f"Failed using model {model_name}: {model_err}")
-                last_err = model_err
+        if api_key.startswith('sk-or-'):
+            import requests
+            import base64
+            with open(pdf_path, "rb") as f:
+                pdf_data = base64.b64encode(f.read()).decode("utf-8")
+            
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            payload = {
+                "model": "google/gemini-2.5-flash",
+                "messages": [
+                    {"role": "system", "content": SYSTEM_INSTRUCTION_PDF_SOLVER},
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:application/pdf;base64,{pdf_data}"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+            res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+            if res.status_code == 200:
+                response_text = res.json()["choices"][0]["message"]["content"]
+            else:
+                last_err = res.text
+        else:
+            models_to_try = [
+                'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
+                'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
+                'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
+                'gemini-1.5-pro', 'gemini-2.5-pro'
+            ]
+            
+            for model_name in models_to_try:
+                try:
+                    model = genai.GenerativeModel(model_name, system_instruction=SYSTEM_INSTRUCTION_PDF_SOLVER)
+                    response = model.generate_content([uploaded_file, prompt])
+                    if response and response.text:
+                        response_text = response.text
+                        break
+                except Exception as model_err:
+                    print(f"Failed using model {model_name}: {model_err}")
+                    last_err = model_err
                 
         try:
-            genai.delete_file(uploaded_file.name)
+            if not api_key.startswith('sk-or-'):
+                genai.delete_file(uploaded_file.name)
         except:
             pass
             
-        if not response or not response.text:
+        if not response_text:
             raise ValueError(f"Google Gemini API returned empty response or failed across all models. Last error: {last_err}")
             
         out_filename = "turnitin_slayer_result.docx"
         out_path = os.path.join(app.config['UPLOAD_FOLDER'], out_filename)
         
         doc = Document()
-        paragraphs = response.text.split('\n')
+        paragraphs = response_text.split('\n')
         for para in paragraphs:
             if para.strip():
                 doc.add_paragraph(para.strip())

@@ -897,12 +897,28 @@ def check_api():
         
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content("Tes koneksi. Balas dengan kata OK saja.")
-        if response.text:
+        models_to_try = [
+            'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
+            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
+            'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
+            'gemini-1.5-pro', 'gemini-2.5-pro'
+        ]
+        response = None
+        last_err = None
+        
+        for model_name in models_to_try:
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content("Tes koneksi. Balas dengan kata OK saja.")
+                if response and response.text:
+                    break
+            except Exception as err:
+                last_err = err
+                
+        if response and response.text:
             return jsonify({'status': 'success'})
         else:
-            return jsonify({'status': 'error', 'message': 'Respons kosong dari API'})
+            return jsonify({'status': 'error', 'message': f'Respons kosong atau error dari API. Terakhir error: {last_err}'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
@@ -970,7 +986,6 @@ def process_ai():
     
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=PARAPHRASE_SYSTEM_PROMPT)
         
         try:
             doc = Document(orig_path)
@@ -978,23 +993,43 @@ def process_ai():
             raise Exception(f"File dokumen tidak bisa dibuka atau rusak: {docx_err}")
 
         replaced_count = 0
+        models_to_try = [
+            'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
+            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
+            'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
+            'gemini-1.5-pro', 'gemini-2.5-pro'
+        ]
         
         for p in doc.paragraphs:
             original_text = p.text.strip()
             if len(original_text) > 20 and not original_text.startswith("BAB ") and not original_text.startswith("DAFTAR PUSTAKA") and not original_text.isupper():
                 try:
                     time.sleep(4.0) # Delay to avoid 429 Rate Limit
-                    response = model.generate_content(original_text)
-                    para_text = response.text.strip()
                     
-                    if para_text:
-                        if len(p.runs) > 0:
-                            p.runs[0].text = para_text
-                            for r in p.runs[1:]:
-                                r.text = ""
-                        else:
-                            p.text = para_text
-                        replaced_count += 1
+                    # Try model sequence for generation
+                    para_text = None
+                    last_err = None
+                    for model_name in models_to_try:
+                        try:
+                            model = genai.GenerativeModel(model_name, system_instruction=PARAPHRASE_SYSTEM_PROMPT)
+                            response = model.generate_content(original_text)
+                            if response and response.text:
+                                para_text = response.text.strip()
+                                break
+                        except Exception as m_err:
+                            last_err = m_err
+                            
+                    if not para_text:
+                        print(f"Skipping paragraph due to API failure on all models. Last error: {last_err}")
+                        continue
+                    
+                    if len(p.runs) > 0:
+                        p.runs[0].text = para_text
+                        for r in p.runs[1:]:
+                            r.text = ""
+                    else:
+                        p.text = para_text
+                    replaced_count += 1
                 except Exception as api_err:
                     print(f"API Error at paragraph: {original_text[:50]}... Error: {api_err}")
                     
@@ -1207,16 +1242,32 @@ def process_pdf_solver():
             "Abaikan teks yang bersih (tanpa warna). Hasilkan output berupa daftar teks asli dan hasil parafrasenya sesuai aturan format Markdown yang telah ditetapkan."
         )
         
-        model = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_INSTRUCTION_PDF_SOLVER)
-        response = model.generate_content([uploaded_file, prompt])
+        models_to_try = [
+            'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
+            'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
+            'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
+            'gemini-1.5-pro', 'gemini-2.5-pro'
+        ]
+        response = None
+        last_err = None
         
+        for model_name in models_to_try:
+            try:
+                model = genai.GenerativeModel(model_name, system_instruction=SYSTEM_INSTRUCTION_PDF_SOLVER)
+                response = model.generate_content([uploaded_file, prompt])
+                if response and response.text:
+                    break
+            except Exception as model_err:
+                print(f"Failed using model {model_name}: {model_err}")
+                last_err = model_err
+                
         try:
             genai.delete_file(uploaded_file.name)
         except:
             pass
             
-        if not response.text:
-            raise ValueError("Google Gemini API returned empty response.")
+        if not response or not response.text:
+            raise ValueError(f"Google Gemini API returned empty response or failed across all models. Last error: {last_err}")
             
         out_filename = "turnitin_slayer_result.docx"
         out_path = os.path.join(app.config['UPLOAD_FOLDER'], out_filename)

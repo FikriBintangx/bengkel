@@ -1041,7 +1041,7 @@ def check_api():
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": "google/gemini-2.0-flash-lite:free",
+                "model": "openrouter/free",
                 "messages": [{"role": "user", "content": "Tes"}],
                 "max_tokens": 10
             }
@@ -1165,7 +1165,7 @@ def process_ai():
                             "Content-Type": "application/json"
                         }
                         payload = {
-                            "model": "google/gemini-2.0-flash-lite:free",
+                            "model": "openrouter/free",
                             "messages": [
                                 {"role": "system", "content": PARAPHRASE_SYSTEM_PROMPT},
                                 {"role": "user", "content": original_text}
@@ -1434,7 +1434,7 @@ def process_pdf_solver():
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": "google/gemini-2.0-flash-lite:free",
+                "model": "openrouter/free",
                 "messages": [
                     {"role": "system", "content": SYSTEM_INSTRUCTION_PDF_SOLVER},
                     {

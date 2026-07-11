@@ -7,38 +7,27 @@ import google.generativeai as genai
 from pypdf import PdfReader, PdfWriter
 
 INDONESIAN_SYNONYMS = {
-    "menggunakan": "memanfaatkan",
-    "memanfaatkan": "menggunakan",
-    "menunjukkan": "mengindikasikan",
-    "mengindikasikan": "menunjukkan",
+    "menggunakan": "memakai",
+    "menunjukkan": "memperlihatkan",
     "penelitian": "studi",
     "studi": "penelitian",
     "metode": "pendekatan",
     "pendekatan": "metode",
     "adalah": "merupakan",
-    "merupakan": "ialah",
+    "merupakan": "adalah",
     "berbasis": "berlandaskan",
-    "informasi": "data",
-    "sistem": "mekanisme",
-    "untuk": "guna",
     "sangat": "amat",
     "dapat": "bisa",
-    "membuat": "menghasilkan",
-    "hasil": "keluaran",
-    "analisis": "pengkajian",
+    "membuat": "menyusun",
+    "hasil": "temuan",
+    "analisis": "kajian",
     "implementasi": "penerapan",
     "aplikasi": "perangkat lunak",
     "proses": "tahapan",
     "tujuan": "sasaran",
-    "maka": "oleh karena itu",
-    "sehingga": "akibatnya",
     "namun": "akan tetapi",
     "tetapi": "namun",
-    "dengan": "melalui",
-    "pada": "di",
     "tentang": "mengenai",
-    "secara": "melalui",
-    "efisien": "efektif",
     "cepat": "pesat",
     "mudah": "gampang",
     "membantu": "mempermudah",
@@ -55,26 +44,65 @@ INDONESIAN_SYNONYMS = {
     "dibutuhkan": "diperlukan",
     "berdasarkan": "berlandaskan",
     "berlandaskan": "berdasarkan",
-    "berbagai": "macam-macam",
-    "serta": "dan juga",
-    "salah satu": "suatu bagian",
     "penting": "krusial",
     "krusial": "penting",
-    "teknologi": "sistem teknik",
     "perkembangan": "kemajuan",
     "kemajuan": "perkembangan",
     "meningkatkan": "memaksimalkan",
     "memaksimalkan": "meningkatkan",
-    "efektif": "berdaya guna",
-    "sebagai": "selaku",
-    "karena": "disebabkan oleh",
-    "oleh": "lewat"
+    "efektif": "tepat sasaran"
 }
 
+EXCLUDE_PHRASES = [
+    "sistem informasi akuntansi",
+    "sistem informasi",
+    "tarif efektif rata-rata",
+    "tarif efektif",
+    "daftarpustaka",
+    "daftar pustaka",
+    "use case",
+    "class diagram",
+    "waterfall",
+    "database",
+    "data base",
+    "pph 21",
+    "pajak penghasilan",
+    "sistem penggajian",
+    "sistem teknik",
+    "ter",
+    "uml",
+    "php",
+    "mysql",
+    "haar cascade",
+    "lbph"
+]
+
 def offline_paraphrase(text):
-    words = re.findall(r'\b\w+\b|[^\w\s]', text)
+    if not text:
+        return text
+        
+    placeholders = {}
+    temp_text = text
+    
+    # Sort phrases by length descending to match longest phrases first
+    sorted_phrases = sorted(EXCLUDE_PHRASES, key=len, reverse=True)
+    
+    for idx, phrase in enumerate(sorted_phrases):
+        pattern = re.compile(r'\b' + re.escape(phrase) + r'\b', re.IGNORECASE)
+        matches = pattern.findall(temp_text)
+        for match in matches:
+            key = f"__EXCLUDE_PLACEHOLDER_{idx}_{len(placeholders)}__"
+            placeholders[key] = match
+            temp_text = temp_text.replace(match, key)
+            
+    words = re.findall(r'\b\w+(?:-\w+)*\b|[^\w\s]', temp_text)
     new_words = []
+    
     for token in words:
+        if token.startswith("__EXCLUDE_PLACEHOLDER_") and token.endswith("__"):
+            new_words.append(token)
+            continue
+            
         if token.isalnum():
             token_lower = token.lower()
             if token_lower in INDONESIAN_SYNONYMS:
@@ -91,11 +119,17 @@ def offline_paraphrase(text):
             
     result = ""
     for i, token in enumerate(new_words):
-        if i > 0 and token.isalnum() and new_words[i-1].isalnum():
-            result += " "
-        elif i > 0 and token.isalnum() and new_words[i-1] not in ['"', "'", '(', '[', '{']:
-            result += " "
+        if i > 0:
+            prev = new_words[i-1]
+            if token.isalnum() or token.startswith("__EXCLUDE_"):
+                if prev.isalnum() or prev.endswith("__") or prev not in ['"', "'", '(', '[', '{']:
+                    result += " "
         result += token
+        
+    for key, original in placeholders.items():
+        result = result.replace(key, original)
+        
+    result = re.sub(r'\s+', ' ', result).strip()
     return result
 
 app = Flask(__name__)

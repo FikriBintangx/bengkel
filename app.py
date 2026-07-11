@@ -112,7 +112,8 @@ PARAPHRASE_SYSTEM_PROMPT = """Anda adalah asisten akademik profesional yang bers
 Tugas Anda adalah memparafrasekan teks bahasa Indonesia yang diberikan oleh pengguna dengan mengikuti instruksi ketat berikut:
 
 A. Aturan Umum
-- Jangan mengubah makna utama.
+- Jangan mengubah makna utama, substansi, atau maksud asli penulis sedikit pun.
+- Wajib menggunakan bahasa yang sama dengan input teks asli secara mutlak (JANGAN menerjemahkan ke bahasa lain, jika aslinya Bahasa Indonesia maka hasil parafrase wajib Bahasa Indonesia).
 - Pertahankan fakta.
 - Pertahankan angka.
 - Pertahankan statistik.
@@ -238,7 +239,7 @@ SYSTEM_INSTRUCTION_PDF_SOLVER = """INSTRUKSI SISTEM ABSOLUT - PROTOKOL "TURNITIN
 
 PERINGATAN KRITIKAL: Anda dilarang keras berhalusinasi. Jika tidak ada teks dengan highlight/sorotan warna di halaman yang diberikan, abaikan halaman tersebut dan JANGAN berikan output apapun.
 
-Anda adalah mesin pemroses bahasa akademis tingkat lanjut. Tugas Anda mengekstrak secara presisi teks yang terindikasi plagiarisme (memiliki highlight warna) dari dokumen PDF dan melakukan rekonstruksi radikal tanpa mengubah substansi ilmiah.
+Anda adalah mesin pemroses bahasa akademis tingkat lanjut. Tugas Anda mengekstrak secara presisi teks yang terindikasi plagiarisme (memiliki highlight warna) dari dokumen PDF dan melakukan rekonstruksi radikal tanpa mengubah makna atau substansi ilmiah sedikit pun serta tetap menggunakan Bahasa Indonesia sesuai bahasa aslinya.
 
 Ikuti 5 Aturan Emas ini TANPA PENGECUALIAN:
 
@@ -251,8 +252,8 @@ Ikuti 5 Aturan Emas ini TANPA PENGECUALIAN:
    - Lakukan inversi klausa (pindahkan posisi anak kalimat).
    - Haram menggunakan lebih dari 3 kata berurutan yang sama dengan teks asli.
 
-3. PRESERVASI ENTITAS TEKNIS: 
-   Kosakata harus dinaikkan menjadi bahasa akademis formal. NAMUN, Anda DILARANG mengubah istilah teknis, nama algoritma (seperti Haar Cascade, LBPH, dll), bahasa pemrograman, data metrik, angka, dan format sitasi (Nama, Tahun).
+3. PRESERVASI ENTITAS TEKNIS & BAHASA: 
+   Kosakata harus dinaikkan menjadi bahasa akademis formal. NAMUN, Anda DILARANG mengubah istilah teknis, nama algoritma (seperti Haar Cascade, LBPH, dll), bahasa pemrograman, data metrik, angka, dan format sitasi (Nama, Tahun). Wajib memelihara bahasa asli (Bahasa Indonesia) secara mutlak dan dilarang menerjemahkan teks ke bahasa asing.
 
 4. FORMAT MARKDOWN MUTLAK: 
    Wajib menggunakan format keluaran berikut untuk setiap temuan. Jangan tambahkan pembuka, penutup, atau komentar apapun.

@@ -893,6 +893,15 @@ HTML_TEMPLATE = """
                     </div>
 
                     <div class="form-group">
+                        <label>Turnitin PDF Report (.pdf) <span style="font-weight: normal; color: var(--secondary-text); font-size: 0.8rem;">(Optional - upload to target only plagiarized parts)</span></label>
+                        <div class="file-upload-wrapper">
+                            <span class="upload-icon">📕</span>
+                            <div class="file-name-label" id="ai-pdf-label">Choose a file or drag it here</div>
+                            <input type="file" name="turnitin_pdf" accept=".pdf" onchange="updateLabel(this, 'ai-pdf-label')">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
                         <label>Paraphrase Rules (Active & Updated)</label>
                         <div class="rules-container">
                             <ul>
@@ -1255,7 +1264,8 @@ HTML_TEMPLATE = """
             } else {
                 items = [
                     { text: '📕 Set as PDF Solver Input', action: () => selectServerFile('pdf_solver', 'pdf_file', filename) },
-                    { text: '🔄 Set as PDF to Convert (PDF to Word)', action: () => selectServerFile('pdf2word', 'pdf_file', filename) }
+                    { text: '🔄 Set as PDF to Convert (PDF to Word)', action: () => selectServerFile('pdf2word', 'pdf_file', filename) },
+                    { text: '📕 Set as Turnitin PDF Report (AI Pro)', action: () => selectServerFile('ai', 'turnitin_pdf', filename) }
                 ];
             }
 
@@ -1310,6 +1320,7 @@ HTML_TEMPLATE = """
             if (tabId === 'manual' && fieldName === 'original_doc') labelId = 'manual-orig-label';
             if (tabId === 'manual' && fieldName === 'reference_doc') labelId = 'manual-ref-label';
             if (tabId === 'ai' && fieldName === 'original_doc') labelId = 'ai-orig-label';
+            if (tabId === 'ai' && fieldName === 'turnitin_pdf') labelId = 'ai-pdf-label';
             if (tabId === 'compare_docs' && fieldName === 'original_doc') labelId = 'compare-orig-label';
             if (tabId === 'compare_docs' && fieldName === 'paraphrased_doc') labelId = 'compare-para-label';
             if (tabId === 'pdf_solver' && fieldName === 'pdf_file') labelId = 'pdf-solver-label';
@@ -1682,7 +1693,176 @@ def process_ai():
         orig_name, orig_path, is_temp_orig = resolve_file('server_original_doc', 'original_doc', '.docx')
     except Exception as e:
         return redirect(url_for('index', error_msg=str(e), api_key_val=api_key, active_tab="ai"))
+        
+    has_pdf = False
+    pdf_name = None
+    pdf_path = None
+    is_temp_pdf = False
     
+    if request.form.get('server_turnitin_pdf') or ('turnitin_pdf' in request.files and request.files['turnitin_pdf'].filename != ''):
+        try:
+            pdf_name, pdf_path, is_temp_pdf = resolve_file('server_turnitin_pdf', 'turnitin_pdf', '.pdf')
+            has_pdf = True
+        except Exception as pdf_err:
+            if is_temp_orig:
+                try: os.remove(orig_path)
+                except: pass
+            return redirect(url_for('index', error_msg=f"Error reading PDF Report: {str(pdf_err)}", api_key_val=api_key, active_tab="ai"))
+            
+    if has_pdf:
+        sanitized_path = os.path.join(app.config['UPLOAD_FOLDER'], "SANITIZED_" + pdf_name)
+        try:
+            reader = PdfReader(pdf_path)
+            writer = PdfWriter()
+            for page in reader.pages:
+                writer.add_page(page)
+            with open(sanitized_path, "wb") as f:
+                writer.write(f)
+            os.remove(pdf_path)
+            pdf_path = sanitized_path
+        except Exception as clean_err:
+            print(f"Sanitization failed: {clean_err}")
+            
+        try:
+            response_text = None
+            last_err = None
+            prompt = (
+                "Berikut adalah dokumen PDF Turnitin. Silakan analisis HANYA pada bagian teks yang memiliki warna highlight/sorotan plagiasi. "
+                "Abaikan teks yang bersih (tanpa warna). Hasilkan output berupa daftar teks asli dan hasil parafrasenya sesuai aturan format Markdown yang telah ditetapkan."
+            )
+            
+            if engine == 'local':
+                reader = PdfReader(pdf_path)
+                full_text = ""
+                for idx, page in enumerate(reader.pages):
+                    text = page.extract_text() or ""
+                    if text.strip():
+                        full_text += f"\n### Halaman {idx+1}\n"
+                        for line in text.split('\n'):
+                            if line.strip():
+                                para = offline_paraphrase(line.strip())
+                                full_text += f"* **Teks Asli:** \"{line.strip()}\"\n* **Hasil Parafrase:** \"**{para}**\"\n\n"
+                response_text = full_text
+            elif engine == 'openrouter':
+                import requests
+                import base64
+                with open(pdf_path, "rb") as f:
+                    pdf_data = base64.b64encode(f.read()).decode("utf-8")
+                
+                headers = {
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json"
+                }
+                payload = {
+                    "model": "openrouter/free",
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_INSTRUCTION_PDF_SOLVER},
+                        {
+                            "role": "user",
+                            "content": [
+                                {"type": "text", "text": prompt},
+                                {
+                                    "type": "image_url",
+                                    "image_url": {
+                                        "url": f"data:application/pdf;base64,{pdf_data}"
+                                    }
+                                }
+                            ]
+                        }
+                    ],
+                    "max_tokens": 3000
+                }
+                res = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
+                if res.status_code == 200:
+                    response_text = res.json()["choices"][0]["message"]["content"]
+                else:
+                    last_err = res.text
+            else:
+                genai.configure(api_key=api_key)
+                uploaded_file = genai.upload_file(path=pdf_path, mime_type='application/pdf')
+                import time
+                for _ in range(30):
+                    if uploaded_file.state.name == "ACTIVE":
+                        break
+                    elif uploaded_file.state.name == "FAILED":
+                        raise ValueError("Gagal memproses file PDF di server Google API.")
+                    time.sleep(2)
+                    uploaded_file = genai.get_file(uploaded_file.name)
+                    
+                models_to_try = [
+                    'gemini-2.0-flash-latest', 'gemini-2.0-flash', 
+                    'gemini-2.5-flash', 'gemini-2.5-flash-lite', 
+                    'gemini-1.5-flash', 'gemini-1.5-flash-latest', 
+                    'gemini-1.5-pro', 'gemini-2.5-pro'
+                ]
+                for model_name in models_to_try:
+                    try:
+                        model = genai.GenerativeModel(model_name, system_instruction=SYSTEM_INSTRUCTION_PDF_SOLVER)
+                        response = model.generate_content([uploaded_file, prompt])
+                        if response and response.text:
+                            response_text = response.text
+                            break
+                    except Exception as model_err:
+                        last_err = model_err
+                try:
+                    genai.delete_file(uploaded_file.name)
+                except:
+                    pass
+                    
+            if not response_text:
+                raise ValueError(f"Paraphrase engine returned empty response or failed. Last error: {last_err}")
+                
+            reps = []
+            current_original = None
+            current_paraphrase = None
+            for line in response_text.split('\n'):
+                txt = line.strip()
+                if not txt:
+                    continue
+                orig_match = re.search(r'\*\*Teks Asli:\*\*\s*(.*)$', txt)
+                para_match = re.search(r'\*\*Hasil Parafrase:\*\*\s*(.*)$', txt)
+                if orig_match:
+                    val = orig_match.group(1).strip()
+                    if val.startswith('"') and val.endswith('"'): val = val[1:-1]
+                    current_original = val.strip()
+                elif para_match:
+                    val = para_match.group(1).strip()
+                    if val.startswith('**'): val = val[2:]
+                    if val.endswith('**'): val = val[:-2]
+                    val = val.strip()
+                    if val.startswith('"') and val.endswith('"'): val = val[1:-1]
+                    current_paraphrase = val.strip()
+                    if current_original:
+                        current_paraphrase = current_paraphrase.replace("**", "")
+                        reps.append([current_original, current_paraphrase])
+                        current_original = None
+                        current_paraphrase = None
+                        
+            if is_temp_pdf:
+                try: os.remove(pdf_path)
+                except: pass
+                
+            if reps:
+                out_filename = "PARAFRASED_" + orig_name
+                out_path = os.path.join(app.config['UPLOAD_FOLDER'], out_filename)
+                replaced_count = do_smart_replacements(orig_path, reps, out_path)
+                
+                if is_temp_orig:
+                    try: os.remove(orig_path)
+                    except: pass
+                    
+                return redirect(url_for('index', success_msg=f"Targeted AI Paraphrase successful! Replaced {replaced_count} highlighted matches.", result_file=out_filename, api_key_val=api_key, active_tab="ai"))
+            else:
+                raise ValueError("Tidak ada paragraf plagiasi yang berhasil diekstrak dari laporan PDF.")
+        except Exception as e:
+            if is_temp_pdf:
+                try: os.remove(pdf_path)
+                except: pass
+            if is_temp_orig:
+                try: os.remove(orig_path)
+                except: pass
+            return redirect(url_for('index', error_msg=f"Targeted Paraphrase Error: {str(e)}", api_key_val=api_key, active_tab="ai"))
+            
     try:
         try:
             doc = Document(orig_path)

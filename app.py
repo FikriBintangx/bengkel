@@ -499,6 +499,31 @@ HTML_TEMPLATE = """
             opacity: 0.9;
         }
 
+        .btn-submit.loading {
+            background: #e9e9e7;
+            border-color: #e9e9e7;
+            color: #787774;
+            cursor: not-allowed;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #787774;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         .btn-download {
             display: inline-block;
             padding: 12px 24px;
@@ -562,11 +587,102 @@ HTML_TEMPLATE = """
             color: var(--secondary-text);
             text-align: center;
         }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 25px;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+            box-sizing: border-box;
+        }
+
+        @media (max-width: 950px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .sidebar-card {
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(15, 15, 15, 0.05);
+            max-height: 80vh;
+            overflow-y: auto;
+            position: sticky;
+            top: 40px;
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.05rem;
+            margin: 0 0 6px 0;
+            font-weight: 700;
+        }
+
+        .sidebar-header p {
+            margin: 0 0 20px 0;
+            font-size: 0.8rem;
+            color: var(--secondary-text);
+            line-height: 1.4;
+        }
+
+        .sidebar-section h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--secondary-text);
+            margin: 0 0 10px 0;
+            font-weight: 700;
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fbfbfa;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: var(--text-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 190px;
+        }
+
+        .file-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .empty-files {
+            font-size: 0.8rem;
+            color: var(--secondary-text);
+            font-style: italic;
+            text-align: center;
+            padding: 10px 0;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="card">
+    <div class="main-layout">
+        <div class="container" style="margin: 0; padding: 0; width: 100%; max-width: 100%;">
+            <div class="card">
             <div class="header">
                 <h1>Slayer Suite</h1>
                 <p class="subtitle">Turnitin Bypass & PDF Productivity Tools</p>
@@ -579,6 +695,7 @@ HTML_TEMPLATE = """
                 <button class="tab-btn" onclick="switchTab('pdf2word')">PDF to Word</button>
                 <button class="tab-btn" onclick="switchTab('word2pdf')">Word to PDF</button>
                 <button class="tab-btn" onclick="switchTab('pdf_solver')">PDF Solver (AI)</button>
+                <button class="tab-btn" onclick="switchTab('compare_docs')">Compare Docs</button>
             </div>
 
             {% if success_msg %}
@@ -762,9 +879,81 @@ HTML_TEMPLATE = """
                 </form>
             </div>
 
+            <!-- TAB 7: COMPARE DOCS -->
+            <div id="compare_docs" class="tab-content">
+                <form action="/process_compare_docs" method="POST" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Original Skripsi Document (.docx)</label>
+                        <div class="file-upload-wrapper">
+                            <span class="upload-icon">📄</span>
+                            <div class="file-name-label" id="compare-orig-label">Choose original file or drag it here</div>
+                            <input type="file" name="original_doc" accept=".docx" required onchange="updateLabel(this, 'compare-orig-label')">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Paraphrased Skripsi Document (.docx)</label>
+                        <div class="file-upload-wrapper">
+                            <span class="upload-icon">✍️</span>
+                            <div class="file-name-label" id="compare-para-label">Choose paraphrased file or drag it here</div>
+                            <input type="file" name="paraphrased_doc" accept=".docx" required onchange="updateLabel(this, 'compare-para-label')">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit">Compare Documents</button>
+                </form>
+            </div>
+
             <footer>Powered by Antigravity AI</footer>
         </div>
     </div>
+
+    <!-- Side Storage Panel -->
+    <div class="sidebar-card">
+        <div class="sidebar-header">
+            <h2>📁 Server Storage</h2>
+            <p>Klik tombol panah (➡️) untuk mengisi berkas di server ke kolom input tab aktif tanpa upload ulang.</p>
+        </div>
+        
+        <div class="sidebar-section">
+            <h3>Word Documents (.docx)</h3>
+            <div class="file-list">
+                {% if docx_files %}
+                    {% for file in docx_files %}
+                    <div class="file-item">
+                        <span class="file-name" title="{{ file }}">{{ file }}</span>
+                        <div class="file-actions">
+                            <a href="/download/{{ file }}" title="Download" style="text-decoration:none;">📥</a>
+                            <button type="button" onclick="showFileMenu(event, '{{ file }}', true)" title="Masukkan berkas" style="background:none; border:none; cursor:pointer; font-size:1.1rem; padding:0; line-height:1; display:inline-flex; align-items:center;">➡️</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-files">Belum ada berkas DOCX di server.</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="sidebar-section" style="margin-top: 25px;">
+            <h3>PDF Documents (.pdf)</h3>
+            <div class="file-list">
+                {% if pdf_files %}
+                    {% for file in pdf_files %}
+                    <div class="file-item">
+                        <span class="file-name" title="{{ file }}">{{ file }}</span>
+                        <div class="file-actions">
+                            <a href="/download/{{ file }}" title="Download" style="text-decoration:none;">📥</a>
+                            <button type="button" onclick="showFileMenu(event, '{{ file }}', false)" title="Masukkan berkas" style="background:none; border:none; cursor:pointer; font-size:1.1rem; padding:0; line-height:1; display:inline-flex; align-items:center;">➡️</button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-files">Belum ada berkas PDF di server.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
 
     <script>
         function updateLabel(input, labelId) {
@@ -922,6 +1111,121 @@ HTML_TEMPLATE = """
                 statusDiv.innerText = '🔴 Gagal terhubung ke server untuk mengecek API Key.';
             });
         }
+
+        function showFileMenu(e, filename, isDocx) {
+            e.stopPropagation();
+            const existing = document.querySelector('.file-action-menu');
+            if (existing) existing.remove();
+
+            const menu = document.createElement('div');
+            menu.className = 'file-action-menu';
+            menu.style.position = 'absolute';
+            menu.style.background = '#ffffff';
+            menu.style.border = '1px solid var(--border-color)';
+            menu.style.borderRadius = '8px';
+            menu.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+            menu.style.zIndex = '1000';
+            menu.style.padding = '8px 0';
+            menu.style.minWidth = '220px';
+            menu.style.top = (e.pageY + 10) + 'px';
+            menu.style.left = (e.pageX - 180) + 'px';
+
+            let items = [];
+            if (isDocx) {
+                items = [
+                    { text: '📄 Set as Original (Manual)', action: () => selectServerFile('manual', 'original_doc', filename) },
+                    { text: '✍️ Set as Reference (Manual)', action: () => selectServerFile('manual', 'reference_doc', filename) },
+                    { text: '🤖 Set as Original (AI Pro)', action: () => selectServerFile('ai', 'original_doc', filename) },
+                    { text: '📄 Set as Original (Compare)', action: () => selectServerFile('compare_docs', 'original_doc', filename) },
+                    { text: '✍️ Set as Paraphrased (Compare)', action: () => selectServerFile('compare_docs', 'paraphrased_doc', filename) }
+                ];
+            } else {
+                items = [
+                    { text: '📕 Set as PDF Solver Input', action: () => selectServerFile('pdf_solver', 'pdf_file', filename) }
+                ];
+            }
+
+            items.forEach(item => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.style.width = '100%';
+                btn.style.padding = '8px 16px';
+                btn.style.textAlign = 'left';
+                btn.style.background = 'none';
+                btn.style.border = 'none';
+                btn.style.cursor = 'pointer';
+                btn.style.fontSize = '0.8rem';
+                btn.style.fontFamily = 'inherit';
+                btn.innerText = item.text;
+                btn.onmouseenter = () => btn.style.background = '#f5f5f4';
+                btn.onmouseleave = () => btn.style.background = 'none';
+                btn.onclick = () => {
+                    item.action();
+                    menu.remove();
+                };
+                menu.appendChild(btn);
+            });
+
+            document.body.appendChild(menu);
+            
+            const closeHandler = () => {
+                menu.remove();
+                document.removeEventListener('click', closeHandler);
+            };
+            setTimeout(() => {
+                document.addEventListener('click', closeHandler);
+            }, 10);
+        }
+
+        function selectServerFile(tabId, fieldName, filename) {
+            switchTab(tabId);
+            
+            const form = document.querySelector(`#${tabId} form`);
+            if (!form) return;
+            
+            let hiddenInput = form.querySelector(`input[name="server_${fieldName}"]`);
+            if (!hiddenInput) {
+                hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = `server_${fieldName}`;
+                form.appendChild(hiddenInput);
+            }
+            hiddenInput.value = filename;
+            
+            let labelId = '';
+            if (tabId === 'manual' && fieldName === 'original_doc') labelId = 'manual-orig-label';
+            if (tabId === 'manual' && fieldName === 'reference_doc') labelId = 'manual-ref-label';
+            if (tabId === 'ai' && fieldName === 'original_doc') labelId = 'ai-orig-label';
+            if (tabId === 'compare_docs' && fieldName === 'original_doc') labelId = 'compare-orig-label';
+            if (tabId === 'compare_docs' && fieldName === 'paraphrased_doc') labelId = 'compare-para-label';
+            if (tabId === 'pdf_solver' && fieldName === 'pdf_file') labelId = 'pdf-solver-label';
+            
+            if (labelId) {
+                const label = document.getElementById(labelId);
+                if (label) {
+                    label.innerHTML = `<span style="color: #0f5132; font-weight: 600;">📁 Server: ${filename}</span>`;
+                }
+            }
+            
+            const fileInput = form.querySelector(`input[name="${fieldName}"]`);
+            if (fileInput) {
+                fileInput.removeAttribute('required');
+            }
+        }
+
+        // Show loading state on form submit
+        window.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('form').forEach(form => {
+                form.addEventListener('submit', function(e) {
+                    const submitBtn = form.querySelector('.btn-submit');
+                    if (submitBtn) {
+                        submitBtn.style.pointerEvents = 'none';
+                        submitBtn.style.opacity = '0.7';
+                        submitBtn.innerHTML = '<div class="spinner"></div> Mohon tunggu, sedang memproses...';
+                    }
+                });
+            });
+        });
     </script>
 </body>
 </html>
@@ -1065,13 +1369,33 @@ def index():
         except:
             pass
             
+    # List files in upload folder for the side select storage panel
+    docx_files = []
+    pdf_files = []
+    try:
+        upload_dir = app.config['UPLOAD_FOLDER']
+        if os.path.exists(upload_dir):
+            for file in os.listdir(upload_dir):
+                if file.startswith('.') or file == 'active_replacements.json':
+                    continue
+                path = os.path.join(upload_dir, file)
+                if os.path.isfile(path):
+                    if file.lower().endswith('.docx'):
+                        docx_files.append(file)
+                    elif file.lower().endswith('.pdf'):
+                        pdf_files.append(file)
+    except:
+        pass
+
     return render_template_string(HTML_TEMPLATE, 
                                   success_msg=success_msg, 
                                   error_msg=error_msg, 
                                   result_file=result_file, 
                                   api_key_val=api_key_val,
                                   has_active_replacements=has_active_replacements,
-                                  active_replacements_count=active_replacements_count)
+                                  active_replacements_count=active_replacements_count,
+                                  docx_files=docx_files,
+                                  pdf_files=pdf_files)
 
 @app.route('/check_api', methods=['POST'])
 def check_api():
@@ -1124,23 +1448,35 @@ def check_api():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)})
 
+def resolve_file(form_server_param, file_key, allowed_ext):
+    server_file = request.form.get(form_server_param)
+    if server_file:
+        filename = server_file
+        path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        if not os.path.exists(path):
+            raise ValueError(f"File server '{filename}' tidak ditemukan.")
+        return filename, path, False
+    else:
+        if file_key not in request.files:
+            raise ValueError(f"Silakan pilih file untuk '{file_key}'.")
+        f = request.files[file_key]
+        if f.filename == '':
+            raise ValueError("Nama file tidak valid.")
+        if not f.filename.lower().endswith(allowed_ext):
+            raise ValueError(f"Format file harus berupa {allowed_ext}!")
+        path = os.path.join(app.config['UPLOAD_FOLDER'], f.filename)
+        f.save(path)
+        return f.filename, path, True
+
 @app.route('/process_manual', methods=['POST'])
 def process_manual():
     use_active_session = request.form.get('use_active_session') == 'on'
     
-    if 'original_doc' not in request.files:
-        return redirect(url_for('index', error_msg="Please select the original document.", active_tab="manual"))
+    try:
+        orig_name, orig_path, is_temp_orig = resolve_file('server_original_doc', 'original_doc', '.docx')
+    except Exception as e:
+        return redirect(url_for('index', error_msg=str(e), active_tab="manual"))
         
-    orig_file = request.files['original_doc']
-    if orig_file.filename == '':
-        return redirect(url_for('index', error_msg="Invalid file name.", active_tab="manual"))
-        
-    if not orig_file.filename.lower().endswith('.docx'):
-        return redirect(url_for('index', error_msg="Format file tidak didukung. File original harus berupa dokumen Word (.docx)!", active_tab="manual"))
-        
-    orig_path = os.path.join(app.config['UPLOAD_FOLDER'], orig_file.filename)
-    orig_file.save(orig_path)
-    
     reps = []
     active_reps_path = os.path.join(app.config['UPLOAD_FOLDER'], 'active_replacements.json')
     
@@ -1155,38 +1491,28 @@ def process_manual():
         if not reps:
             return redirect(url_for('index', error_msg="No active session replacements found.", active_tab="manual"))
     else:
-        if 'reference_doc' not in request.files:
-            return redirect(url_for('index', error_msg="Please upload reference document.", active_tab="manual"))
-        ref_file = request.files['reference_doc']
-        if ref_file.filename == '':
-            return redirect(url_for('index', error_msg="Invalid reference file name.", active_tab="manual"))
-        if not ref_file.filename.lower().endswith('.docx'):
-            return redirect(url_for('index', error_msg="Reference document must be Word (.docx)!", active_tab="manual"))
-            
-        ref_path = os.path.join(app.config['UPLOAD_FOLDER'], ref_file.filename)
-        ref_file.save(ref_path)
-        
         try:
+            ref_name, ref_path, is_temp_ref = resolve_file('server_reference_doc', 'reference_doc', '.docx')
             reps = parse_revisi(ref_path)
-            try: os.remove(ref_path)
-            except: pass
+            if is_temp_ref:
+                try: os.remove(ref_path)
+                except: pass
         except Exception as e:
-            return redirect(url_for('index', error_msg=f"Error parsing reference file: {str(e)}", active_tab="manual"))
+            if is_temp_orig:
+                try: os.remove(orig_path)
+                except: pass
+            return redirect(url_for('index', error_msg=str(e), active_tab="manual"))
             
     if reps:
         try:
-            if not reps:
-                return redirect(url_for('index', error_msg="No replacements found.", active_tab="manual"))
-                
-            out_filename = "PARAFRASED_" + orig_file.filename
+            out_filename = "PARAFRASED_" + orig_name
             out_path = os.path.join(app.config['UPLOAD_FOLDER'], out_filename)
             
             replaced_count = do_smart_replacements(orig_path, reps, out_path)
             
-            try:
-                os.remove(orig_path)
-            except:
-                pass
+            if is_temp_orig:
+                try: os.remove(orig_path)
+                except: pass
                 
             if use_active_session:
                 try: os.remove(active_reps_path)
@@ -1206,18 +1532,10 @@ def process_ai():
     if engine != 'local' and not api_key:
         return redirect(url_for('index', error_msg="API Key is required for AI modes.", active_tab="ai"))
         
-    if 'original_doc' not in request.files:
-        return redirect(url_for('index', error_msg="Please select a document.", api_key_val=api_key, active_tab="ai"))
-        
-    orig_file = request.files['original_doc']
-    if orig_file.filename == '':
-        return redirect(url_for('index', error_msg="Invalid file name.", api_key_val=api_key, active_tab="ai"))
-        
-    if not orig_file.filename.lower().endswith('.docx'):
-        return redirect(url_for('index', error_msg="Format file harus berupa dokumen Word (.docx).", api_key_val=api_key, active_tab="ai"))
-
-    orig_path = os.path.join(app.config['UPLOAD_FOLDER'], orig_file.filename)
-    orig_file.save(orig_path)
+    try:
+        orig_name, orig_path, is_temp_orig = resolve_file('server_original_doc', 'original_doc', '.docx')
+    except Exception as e:
+        return redirect(url_for('index', error_msg=str(e), api_key_val=api_key, active_tab="ai"))
     
     try:
         try:
@@ -1287,14 +1605,15 @@ def process_ai():
                 except Exception as api_err:
                     print(f"API Error at paragraph: {original_text[:50]}... Error: {api_err}")
                     
-        out_filename = "AI_PARAFRASED_" + orig_file.filename
+        out_filename = "AI_PARAFRASED_" + orig_name
         out_path = os.path.join(app.config['UPLOAD_FOLDER'], out_filename)
         doc.save(out_path)
         
-        try:
-            os.remove(orig_path)
-        except:
-            pass
+        if is_temp_orig:
+            try:
+                os.remove(orig_path)
+            except:
+                pass
             
         return redirect(url_for('index', success_msg=f"Successfully paraphrased {replaced_count} paragraphs!", result_file=out_filename, api_key_val=api_key, active_tab="ai"))
         
@@ -1450,20 +1769,12 @@ def process_pdf_solver():
     if engine != 'local' and not api_key:
         return redirect(url_for('index', error_msg="API Key is required for AI modes.", active_tab="pdf_solver"))
         
-    if 'pdf_file' not in request.files:
-        return redirect(url_for('index', error_msg="Please select a PDF file.", api_key_val=api_key, active_tab="pdf_solver"))
+    try:
+        pdf_name, pdf_path, is_temp_pdf = resolve_file('server_pdf_file', 'pdf_file', '.pdf')
+    except Exception as e:
+        return redirect(url_for('index', error_msg=str(e), api_key_val=api_key, active_tab="pdf_solver"))
         
-    pdf_file = request.files['pdf_file']
-    if pdf_file.filename == '':
-        return redirect(url_for('index', error_msg="Invalid file name.", api_key_val=api_key, active_tab="pdf_solver"))
-        
-    if not pdf_file.filename.lower().endswith('.pdf'):
-        return redirect(url_for('index', error_msg="File must be a PDF document (.pdf).", api_key_val=api_key, active_tab="pdf_solver"))
-
-    pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], pdf_file.filename)
-    pdf_file.save(pdf_path)
-    
-    sanitized_path = os.path.join(app.config['UPLOAD_FOLDER'], "SANITIZED_" + pdf_file.filename)
+    sanitized_path = os.path.join(app.config['UPLOAD_FOLDER'], "SANITIZED_" + pdf_name)
     try:
         reader = PdfReader(pdf_path)
         writer = PdfWriter()
@@ -1620,20 +1931,244 @@ def process_pdf_solver():
                 doc.add_paragraph(para.strip())
         doc.save(out_path)
         
-        try:
-            os.remove(pdf_path)
-        except:
-            pass
+        if is_temp_pdf:
+            try:
+                os.remove(pdf_path)
+            except:
+                pass
             
         return redirect(url_for('index', success_msg="PDF successfully analyzed! Paraphrases generated successfully.", result_file=out_filename, api_key_val=api_key, active_tab="pdf_solver"))
         
     except Exception as e:
         try:
-            if os.path.exists(pdf_path):
+            if is_temp_pdf and os.path.exists(pdf_path):
                 os.remove(pdf_path)
         except:
             pass
         return redirect(url_for('index', error_msg=f"Error occurred: {str(e)}", api_key_val=api_key, active_tab="pdf_solver"))
+
+COMPARE_RESULT_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Perbandingan Dokumen - Slayer Suite</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #fcfcfc;
+            --card-bg: #ffffff;
+            --text-color: #1a1a1a;
+            --secondary-text: #666666;
+            --accent-color: #000000;
+            --border-color: #e5e5e5;
+            --red-highlight: #fde8e8;
+            --green-highlight: #eafaf1;
+            --red-text: #9b1c1c;
+            --green-text: #0f5132;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        .header {
+            max-width: 1200px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .header p {
+            margin: 5px 0 0 0;
+            color: var(--secondary-text);
+            font-size: 0.85rem;
+        }
+
+        .btn-back {
+            display: inline-block;
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: #ffffff;
+            color: var(--text-color);
+            font-weight: 500;
+            text-decoration: none;
+            transition: background 0.15s;
+            cursor: pointer;
+        }
+
+        .btn-back:hover {
+            background: #f5f5f4;
+        }
+
+        .comparison-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .grid-header {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            padding: 10px 0;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .col {
+            padding: 10px;
+            border-radius: 6px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .col-orig {
+            background: var(--red-highlight);
+            color: var(--red-text);
+            border-left: 4px solid #f8b4b4;
+        }
+
+        .col-para {
+            background: var(--green-highlight);
+            color: var(--green-text);
+            border-left: 4px solid #84e1bc;
+        }
+
+        .para-num {
+            font-size: 0.75rem;
+            color: var(--secondary-text);
+            font-weight: 600;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+        }
+
+        .no-diff {
+            text-align: center;
+            padding: 50px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1.1rem;
+            color: var(--secondary-text);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>Hasil Perbandingan Dokumen</h1>
+            <p>Membandingkan <strong>{{ orig_name }}</strong> (Kiri) dan <strong>{{ para_name }}</strong> (Kanan)</p>
+        </div>
+        <a href="/" class="btn-back">⬅️ Kembali ke Dashboard</a>
+    </div>
+
+    <div class="comparison-container">
+        {% if diffs %}
+            <div class="grid-header">
+                <div>Original Text (Skripsi Asli)</div>
+                <div>Paraphrased Text (Hasil Parafrase)</div>
+            </div>
+            
+            {% for diff in diffs %}
+            <div class="row">
+                <div>
+                    <div class="para-num">Paragraf {{ diff.paragraph_num }}</div>
+                    <div class="col col-orig">{{ diff.original }}</div>
+                </div>
+                <div>
+                    <div class="para-num">Paragraf {{ diff.paragraph_num }}</div>
+                    <div class="col col-para">{{ diff.paraphrased }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="no-diff">
+                🎉 Dokumen identik! Tidak ditemukan adanya perbedaan kata/kalimat di antara kedua file tersebut.
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+"""
+
+@app.route('/process_compare_docs', methods=['POST'])
+def process_compare_docs():
+    try:
+        orig_name, orig_path, is_temp_orig = resolve_file('server_original_doc', 'original_doc', '.docx')
+    except Exception as e:
+        return redirect(url_for('index', error_msg=str(e), active_tab="compare_docs"))
+        
+    try:
+        para_name, para_path, is_temp_para = resolve_file('server_paraphrased_doc', 'paraphrased_doc', '.docx')
+    except Exception as e:
+        if is_temp_orig:
+            try: os.remove(orig_path)
+            except: pass
+        return redirect(url_for('index', error_msg=str(e), active_tab="compare_docs"))
+        
+    try:
+        doc_orig = Document(orig_path)
+        doc_para = Document(para_path)
+        
+        diffs = []
+        for idx, (p_orig, p_para) in enumerate(zip(doc_orig.paragraphs, doc_para.paragraphs)):
+            txt_orig = p_orig.text.strip()
+            txt_para = p_para.text.strip()
+            if txt_orig != txt_para:
+                diffs.append({
+                    'paragraph_num': idx + 1,
+                    'original': txt_orig,
+                    'paraphrased': txt_para
+                })
+                
+        if is_temp_orig:
+            try: os.remove(orig_path)
+            except: pass
+        if is_temp_para:
+            try: os.remove(para_path)
+            except: pass
+            
+        return render_template_string(COMPARE_RESULT_TEMPLATE, diffs=diffs, orig_name=orig_name, para_name=para_name)
+    except Exception as e:
+        if is_temp_orig:
+            try: os.remove(orig_path)
+            except: pass
+        if is_temp_para:
+            try: os.remove(para_path)
+            except: pass
+        return redirect(url_for('index', error_msg=f"Error occurred during comparison: {str(e)}", active_tab="compare_docs"))
 
 @app.route('/download/<filename>')
 def download(filename):

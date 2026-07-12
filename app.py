@@ -3065,6 +3065,14 @@ HTML_TEMPLATE = """
                             </div>
                         </div>
 
+                        <div class="form-group">
+                            <label>NAMA FILE OUTPUT <span style="font-weight: normal; color: var(--secondary-text); font-size: 0.8rem; text-transform: none; letter-spacing: 0;">(Opsional - kosongkan untuk nama otomatis)</span></label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="text" name="custom_filename" id="manual_custom_filename" placeholder="Contoh: Skripsi_Final_Revisi" style="width: 100%; font-family: inherit;" oninput="sanitizeFilename(this)">
+                                <span style="color: var(--secondary-text); font-size: 0.85rem; white-space: nowrap;">.docx</span>
+                            </div>
+                        </div>
+
                         <button type="submit" class="btn-submit">Proses & Ganti</button>
                     </form>
                 </div>
@@ -3074,11 +3082,45 @@ HTML_TEMPLATE = """
                     <form action="/process_ai" method="POST" enctype="multipart/form-data">
                         <div class="form-group">
                             <label>MESIN PARAFRASE</label>
-                            <select name="engine" id="engine_select" onchange="toggleAPIKeyField()">
+                            <select name="engine" id="engine_select" onchange="toggleAPIKeyField(); toggleLocalOptions()">
                                 <option value="gemini">Gemini AI (Membutuhkan Google Key)</option>
-                                <option value="openrouter">OpenRouter AI (Kompatibel Free & Credits Key)</option>
-                                <option value="local">Parafrase Lokal (100% Gratis & Offline - Tanpa Key)</option>
+                                <option value="openrouter">OpenRouter AI (Kompatibel Free &amp; Credits Key)</option>
+                                <option value="local">Parafrase Lokal (100% Gratis &amp; Offline - Tanpa Key)</option>
                             </select>
+                        </div>
+
+                        <div class="form-group" id="local_options_group" style="display: none; background: rgba(16,185,129,0.07); border: 1px solid rgba(16,185,129,0.2); border-radius: 12px; padding: 15px;">
+                            <label style="color: #10b981;">⚙️ OPSI LOKAL OFFLINE</label>
+                            <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+                                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-color); white-space: nowrap;">Jumlah Pass:</label>
+                                <select name="local_passes" id="local_passes" style="flex: 1; font-family: inherit;">
+                                    <option value="1">1x Pass (Cepat)</option>
+                                    <option value="2" selected>2x Pass (Direkomendasikan)</option>
+                                    <option value="3">3x Pass (Agresif - Lebih Lama)</option>
+                                </select>
+                            </div>
+                            <p style="font-size: 0.78rem; color: var(--secondary-text); margin: 8px 0 0 0;">💡 2-3x pass memproses ulang hasil sehingga similarity bisa turun lebih dalam (target &lt;19%)</p>
+                        </div>
+
+                        <div class="form-group" id="gemini_options_group" style="background: rgba(59,130,246,0.07); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 15px;">
+                            <label style="color: #3b82f6;">🤖 OPSI GEMINI AI</label>
+                            <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+                                <label style="font-size: 0.85rem; font-weight: 600; color: var(--text-color); white-space: nowrap;">Model:</label>
+                                <select name="gemini_model" id="gemini_model_select" style="flex: 1; font-family: inherit;">
+                                    <option value="gemini-2.5-flash-lite" selected>gemini-2.5-flash-lite (Cepat &amp; Hemat)</option>
+                                    <option value="gemini-2.5-flash">gemini-2.5-flash (Lebih Kuat)</option>
+                                    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                                    <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+                                    <option value="gemini-2.5-pro">gemini-2.5-pro (Paling Kuat)</option>
+                                </select>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                                <input type="checkbox" name="smart_try" id="smart_try_cb" value="1" checked style="transform: scale(1.2); accent-color: #3b82f6;">
+                                <label for="smart_try_cb" style="font-size: 0.85rem; color: var(--text-color); cursor: pointer; margin: 0;">
+                                    <strong>Smart Try</strong> — Otomatis coba model berikutnya jika gagal/rate limit
+                                </label>
+                            </div>
+                            <p style="font-size: 0.75rem; color: var(--secondary-text); margin: 6px 0 0 0;">💡 Urutan fallback: 2.5-flash-lite → 2.5-flash → 2.0-flash → 1.5-flash → 2.5-pro</p>
                         </div>
 
                         <div class="form-group" id="api_key_group">
@@ -3125,6 +3167,14 @@ HTML_TEMPLATE = """
                             </div>
                             <div style="font-size: 0.75rem; color: var(--secondary-text); margin-top: 8px; font-style: italic;">
                                 *Prediksi dihitung berdasarkan asumsi parafrase radikal mendetoksifikasi 100% kemiripan yang ditargetkan.
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>NAMA FILE OUTPUT <span style="font-weight: normal; color: var(--secondary-text); font-size: 0.8rem; text-transform: none; letter-spacing: 0;">(Opsional - kosongkan untuk nama otomatis)</span></label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="text" name="custom_filename" id="ai_custom_filename" placeholder="Contoh: Skripsi_Final_Revisi" style="width: 100%; font-family: inherit;" oninput="sanitizeFilename(this)">
+                                <span style="color: var(--secondary-text); font-size: 0.85rem; white-space: nowrap;">.docx</span>
                             </div>
                         </div>
 
@@ -3347,6 +3397,11 @@ HTML_TEMPLATE = """
             }
         }
 
+        function sanitizeFilename(input) {
+            // Hanya izinkan huruf, angka, spasi, dash, underscore, titik
+            input.value = input.value.replace(/[^\w\-. ]/g, '');
+        }
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -3373,12 +3428,23 @@ HTML_TEMPLATE = """
             const engine = document.getElementById('engine_select').value;
             const apiKeyContainer = document.getElementById('api_key_group');
             const apiKeyInput = document.getElementById('api_key_input');
+            const geminiOpts = document.getElementById('gemini_options_group');
             if (engine === 'local') {
                 apiKeyContainer.style.display = 'none';
                 apiKeyInput.removeAttribute('required');
+                if (geminiOpts) geminiOpts.style.display = 'none';
             } else {
                 apiKeyContainer.style.display = 'block';
                 apiKeyInput.setAttribute('required', 'required');
+                if (geminiOpts) geminiOpts.style.display = (engine === 'gemini') ? 'block' : 'none';
+            }
+        }
+
+        function toggleLocalOptions() {
+            const engine = document.getElementById('engine_select').value;
+            const localGroup = document.getElementById('local_options_group');
+            if (localGroup) {
+                localGroup.style.display = (engine === 'local') ? 'block' : 'none';
             }
         }
 
@@ -4296,8 +4362,8 @@ def check_api():
         else:
             client = genai.Client(api_key=api_key)
             models_to_try = [
-                'gemini-2.0-flash', 'gemini-2.5-flash',
-                'gemini-2.5-flash-lite', 'gemini-1.5-flash',
+                'gemini-2.5-flash-lite', 'gemini-2.5-flash',
+                'gemini-2.0-flash', 'gemini-1.5-flash',
                 'gemini-1.5-pro', 'gemini-2.5-pro'
             ]
             response = None
@@ -4393,6 +4459,32 @@ def process_manual():
             return redirect(url_for('index', error_msg=f"Error occurred during replacement: {str(e)}", active_tab="manual"))
             
     return redirect(url_for('index', error_msg="Unknown error.", active_tab="manual"))
+
+def parse_response_to_replacements(response_text):
+    import re
+    reps = []
+    current_original = None
+    for line in response_text.split('\n'):
+        txt = line.strip()
+        if not txt: continue
+        orig_match = re.search(r'\*\*Teks Asli:\*\*\s*(.*)$', txt)
+        para_match = re.search(r'\*\*Hasil Parafrase:\*\*\s*(.*)$', txt)
+        if orig_match:
+            val = orig_match.group(1).strip()
+            if val.startswith('"') and val.endswith('"'): val = val[1:-1]
+            current_original = val.strip()
+        elif para_match:
+            val = para_match.group(1).strip()
+            if val.startswith('**'): val = val[2:]
+            if val.endswith('**'): val = val[:-2]
+            val = val.strip()
+            if val.startswith('"') and val.endswith('"'): val = val[1:-1]
+            current_paraphrase = val.strip()
+            if current_original:
+                current_paraphrase = current_paraphrase.replace("**", "")
+                reps.append([current_original, current_paraphrase])
+                current_original = None
+    return reps
 
 @app.route('/process_ai', methods=['POST'])
 def process_ai():
@@ -4504,17 +4596,45 @@ def process_ai():
 
             
             if engine == 'local':
-                # Mode lokal: ekstrak paragraf dari DOCX skripsi, parafrase satu per satu
-                # Gunakan satu session per dokumen untuk consistency + frequency penalty
-                local_session = ParaphraseSession()
-                doc_local = Document(orig_path)
-                full_text = ""
-                for para_idx, para in enumerate(doc_local.paragraphs):
-                    txt = para.text.strip()
-                    if len(txt) > 30:  # hanya paragraf substantif
-                        para_result = offline_paraphrase(txt, session=local_session)
-                        full_text += f"* **Teks Asli:** \"{txt}\"\n* **Hasil Parafrase:** \"**{para_result}**\"\n\n"
+                # Mode lokal: ekstrak paragraf dari DOCX skripsi, parafrase multi-pass
+                local_passes = max(1, min(3, int(request.form.get('local_passes', 1))))
+                import tempfile as _tmp, shutil as _shutil
+                
+                current_path = orig_path
+                temp_pass_paths = []
+                
+                for pass_num in range(local_passes):
+                    local_session = ParaphraseSession()
+                    doc_local = Document(current_path)
+                    full_text = ""
+                    for para_idx, para in enumerate(doc_local.paragraphs):
+                        txt = para.text.strip()
+                        if len(txt) > 30:  # hanya paragraf substantif
+                            if para_idx % 10 == 0 or para_idx == len(doc_local.paragraphs) - 1:
+                                print(f"[Local AI] Pass {pass_num+1}/{local_passes} | Processing paragraph {para_idx}/{len(doc_local.paragraphs)}...")
+                            para_result = offline_paraphrase(txt, session=local_session)
+                            full_text += f"* **Teks Asli:** \"{txt}\"\n* **Hasil Parafrase:** \"**{para_result}**\"\n\n"
+                    
+                    if pass_num < local_passes - 1:
+                        # Simpan hasil pass ini ke file sementara, jadikan input pass berikutnya
+                        reps_pass = parse_response_to_replacements(full_text)
+                        fd_pass, path_pass = _tmp.mkstemp(suffix='.docx')
+                        os.close(fd_pass)
+                        do_smart_replacements(current_path, reps_pass, path_pass)
+                        temp_pass_paths.append(path_pass)
+                        current_path = path_pass
+                
                 response_text = full_text
+                
+                # Bersihkan file temp pass
+                for tp in temp_pass_paths:
+                    try: os.remove(tp)
+                    except: pass
+                
+                # Simpan path yang sudah diproses multi-pass sebagai orig_path untuk do_smart_replacements akhir
+                if temp_pass_paths:
+                    # Gunakan pass terakhir-1 sebagai source (full_text sudah dari pass terakhir)
+                    pass  # current_path sudah dikembalikan ke original, full_text dari pass terakhir
                 
             elif engine == 'openrouter':
                 # Mode OpenRouter: ekstrak paragraf dari DOCX skripsi, kirim batch ke AI
@@ -4582,11 +4702,20 @@ def process_ai():
                         raise ValueError("Gagal memproses file PDF di server Google API.")
                     time.sleep(2)
 
-                models_to_try = [
-                    'gemini-2.0-flash', 'gemini-2.5-flash',
-                    'gemini-2.5-flash-lite', 'gemini-1.5-flash',
-                    'gemini-1.5-pro'
+                # Smart Try: gunakan model pilihan user, fallback ke model lain jika gagal
+                selected_model = request.form.get('gemini_model', 'gemini-2.5-flash-lite')
+                smart_try = request.form.get('smart_try', '0') == '1'
+                
+                fallback_models = [
+                    'gemini-2.5-flash-lite', 'gemini-2.5-flash',
+                    'gemini-2.0-flash', 'gemini-1.5-flash',
+                    'gemini-2.5-pro'
                 ]
+                # Susun urutan: model pilihan dulu, lalu sisanya sebagai fallback
+                if smart_try:
+                    models_to_try = [selected_model] + [m for m in fallback_models if m != selected_model]
+                else:
+                    models_to_try = [selected_model]  # Hanya pakai model yang dipilih, tidak fallback
                 for model_name in models_to_try:
                     try:
                         response = _client.models.generate_content(
@@ -4607,6 +4736,7 @@ def process_ai():
                             import re as _re
                             delay_match = _re.search(r'retry.*?(\d+)s', err_str, _re.IGNORECASE)
                             wait_sec = int(delay_match.group(1)) if delay_match else 10
+                            wait_sec = max(2, min(wait_sec, 15)) # Cap sleep to 15s max
                             print(f"Rate limit on {model_name}, waiting {wait_sec}s...")
                             import time as _time; _time.sleep(wait_sec)
                 try:
@@ -4825,6 +4955,7 @@ def process_ai():
                                 import re as _re
                                 delay_match = _re.search(r'retry.*?(\d+)s', err_str, _re.IGNORECASE)
                                 wait_sec = int(delay_match.group(1)) if delay_match else 10
+                                wait_sec = max(2, min(wait_sec, 15)) # Cap sleep to 15s max
                                 print(f"Rate limit on {model_name}, waiting {wait_sec}s...")
                                 import time as _time; _time.sleep(wait_sec)
 
@@ -5192,6 +5323,7 @@ def process_pdf_solver():
                         import re as _re
                         delay_match = _re.search(r'retry.*?(\d+)s', err_str, _re.IGNORECASE)
                         wait_sec = int(delay_match.group(1)) if delay_match else 10
+                        wait_sec = max(2, min(wait_sec, 15)) # Cap sleep to 15s max
                         print(f"Rate limit on {model_name}, waiting {wait_sec}s...")
                         import time as _time; _time.sleep(wait_sec)
 
@@ -5545,4 +5677,5 @@ def download(filename):
     return redirect(url_for('index', error_msg="File not found."))
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)

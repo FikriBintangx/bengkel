@@ -3,3 +3,4 @@ python-docx
 google-genai
 pypdf
 pdf2docx
+gunicorn
